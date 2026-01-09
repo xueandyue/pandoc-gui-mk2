@@ -3,12 +3,13 @@ use std::env;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Emitter};
 use tauri::menu::{Menu, MenuItem, Submenu, PredefinedMenuItem};
 use log::{info, error};
+use zip::{ZipWriter, write::SimpleFileOptions};
 
 // Track running install processes for cancellation
 static NEXT_INSTALL_ID: AtomicU32 = AtomicU32::new(1);
@@ -63,6 +64,33 @@ fn get_extended_path() -> String {
             "/usr/local/lib/node_modules/.bin".to_string(),
         ];
         format!("{}:{}", extra_paths.join(":"), current_path)
+    } else if cfg!(target_os = "windows") {
+        // Windows common paths for MiKTeX, npm, cargo, Chocolatey, Scoop
+        let user_profile = env::var("USERPROFILE").unwrap_or_default();
+        let app_data = env::var("APPDATA").unwrap_or_default();
+        let local_app_data = env::var("LOCALAPPDATA").unwrap_or_default();
+        let program_files = env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+
+        let extra_paths = vec![
+            // MiKTeX paths
+            format!("{}\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64", user_profile),
+            format!("{}\\miktex\\bin\\x64", program_files),
+            // TeX Live paths
+            "C:\\texlive\\2024\\bin\\windows".to_string(),
+            "C:\\texlive\\2023\\bin\\windows".to_string(),
+            // npm global paths
+            format!("{}\\npm", app_data),
+            format!("{}\\Roaming\\npm", app_data),
+            // Cargo path
+            format!("{}\\.cargo\\bin", user_profile),
+            // Chocolatey
+            "C:\\ProgramData\\chocolatey\\bin".to_string(),
+            // Scoop
+            format!("{}\\scoop\\shims", user_profile),
+            // Pandoc default install location
+            format!("{}\\Pandoc", local_app_data),
+        ];
+        format!("{};{}", extra_paths.join(";"), current_path)
     } else {
         current_path
     }
@@ -523,6 +551,295 @@ fn write_unicode_header() -> Result<String, String> {
     Ok(header_path.to_string_lossy().to_string())
 }
 
+// Generate a reference DOCX with custom fonts and margins
+// DOCX is a ZIP archive containing XML files that define styles
+#[tauri::command]
+fn generate_reference_docx(
+    main_font: String,
+    mono_font: String,
+    font_size: u32,
+    margin_top: f64,
+    margin_bottom: f64,
+    margin_left: f64,
+    margin_right: f64,
+    margin_unit: String,
+) -> Result<String, String> {
+    let temp_dir = env::temp_dir();
+    let docx_path = temp_dir.join("pandoc-reference.docx");
+
+    // Convert margins to twips (1 inch = 1440 twips, 1 cm = 567 twips, 1 mm = 56.7 twips)
+    let twips_per_unit = match margin_unit.as_str() {
+        "in" => 1440.0,
+        "cm" => 567.0,
+        "mm" => 56.7,
+        _ => 1440.0, // default to inches
+    };
+
+    let margin_top_twips = (margin_top * twips_per_unit) as u32;
+    let margin_bottom_twips = (margin_bottom * twips_per_unit) as u32;
+    let margin_left_twips = (margin_left * twips_per_unit) as u32;
+    let margin_right_twips = (margin_right * twips_per_unit) as u32;
+
+    // Font size in half-points (12pt = 24 half-points)
+    let font_size_half_pts = font_size * 2;
+    // Heading sizes (relative to body)
+    let h1_size = font_size_half_pts + 16; // +8pt
+    let h2_size = font_size_half_pts + 12; // +6pt
+    let h3_size = font_size_half_pts + 8;  // +4pt
+    let h4_size = font_size_half_pts + 4;  // +2pt
+
+    // Use default fonts if not specified
+    let main_font = if main_font.is_empty() { "Calibri".to_string() } else { main_font };
+    let mono_font = if mono_font.is_empty() { "Consolas".to_string() } else { mono_font };
+
+    // Create the DOCX as a ZIP file
+    let file = std::fs::File::create(&docx_path)
+        .map_err(|e| format!("Failed to create DOCX file: {}", e))?;
+
+    let mut zip = ZipWriter::new(file);
+    let options = SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    // [Content_Types].xml
+    let content_types = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+  <Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>
+</Types>"#;
+
+    zip.start_file("[Content_Types].xml", options)
+        .map_err(|e| format!("Failed to create content types: {}", e))?;
+    zip.write_all(content_types.as_bytes())
+        .map_err(|e| format!("Failed to write content types: {}", e))?;
+
+    // _rels/.rels
+    let rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>"#;
+
+    zip.start_file("_rels/.rels", options)
+        .map_err(|e| format!("Failed to create rels: {}", e))?;
+    zip.write_all(rels.as_bytes())
+        .map_err(|e| format!("Failed to write rels: {}", e))?;
+
+    // word/_rels/document.xml.rels
+    let doc_rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
+</Relationships>"#;
+
+    zip.start_file("word/_rels/document.xml.rels", options)
+        .map_err(|e| format!("Failed to create doc rels: {}", e))?;
+    zip.write_all(doc_rels.as_bytes())
+        .map_err(|e| format!("Failed to write doc rels: {}", e))?;
+
+    // word/document.xml - minimal document with page margins
+    let document = format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t></w:t></w:r></w:p>
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="{}" w:right="{}" w:bottom="{}" w:left="{}" w:header="720" w:footer="720" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>"#, margin_top_twips, margin_right_twips, margin_bottom_twips, margin_left_twips);
+
+    zip.start_file("word/document.xml", options)
+        .map_err(|e| format!("Failed to create document.xml: {}", e))?;
+    zip.write_all(document.as_bytes())
+        .map_err(|e| format!("Failed to write document.xml: {}", e))?;
+
+    // word/styles.xml - defines all text styles with custom fonts
+    let styles = format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="{main_font}" w:hAnsi="{main_font}" w:eastAsia="{main_font}" w:cs="{main_font}"/>
+        <w:sz w:val="{font_size_half_pts}"/>
+        <w:szCs w:val="{font_size_half_pts}"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="160" w:line="259" w:lineRule="auto"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+
+  <!-- Normal style (body text) -->
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+    <w:rPr>
+      <w:rFonts w:ascii="{main_font}" w:hAnsi="{main_font}"/>
+      <w:sz w:val="{font_size_half_pts}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- Heading 1 -->
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:keepLines/>
+      <w:spacing w:before="480" w:after="120"/>
+      <w:outlineLvl w:val="0"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="{main_font}" w:hAnsi="{main_font}"/>
+      <w:b/>
+      <w:sz w:val="{h1_size}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- Heading 2 -->
+  <w:style w:type="paragraph" w:styleId="Heading2">
+    <w:name w:val="heading 2"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:keepLines/>
+      <w:spacing w:before="360" w:after="80"/>
+      <w:outlineLvl w:val="1"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="{main_font}" w:hAnsi="{main_font}"/>
+      <w:b/>
+      <w:sz w:val="{h2_size}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- Heading 3 -->
+  <w:style w:type="paragraph" w:styleId="Heading3">
+    <w:name w:val="heading 3"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:keepLines/>
+      <w:spacing w:before="280" w:after="80"/>
+      <w:outlineLvl w:val="2"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="{main_font}" w:hAnsi="{main_font}"/>
+      <w:b/>
+      <w:sz w:val="{h3_size}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- Heading 4 -->
+  <w:style w:type="paragraph" w:styleId="Heading4">
+    <w:name w:val="heading 4"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:keepLines/>
+      <w:spacing w:before="240" w:after="40"/>
+      <w:outlineLvl w:val="3"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="{main_font}" w:hAnsi="{main_font}"/>
+      <w:b/>
+      <w:sz w:val="{h4_size}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- Code/Verbatim style (monospace) -->
+  <w:style w:type="character" w:styleId="VerbatimChar">
+    <w:name w:val="Verbatim Char"/>
+    <w:rPr>
+      <w:rFonts w:ascii="{mono_font}" w:hAnsi="{mono_font}"/>
+      <w:sz w:val="{font_size_half_pts}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- Source Code style (for code blocks) -->
+  <w:style w:type="paragraph" w:styleId="SourceCode">
+    <w:name w:val="Source Code"/>
+    <w:basedOn w:val="Normal"/>
+    <w:pPr>
+      <w:spacing w:before="100" w:after="100"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="{mono_font}" w:hAnsi="{mono_font}"/>
+      <w:sz w:val="{font_size_half_pts}"/>
+    </w:rPr>
+  </w:style>
+
+  <!-- First Paragraph (no indent) -->
+  <w:style w:type="paragraph" w:styleId="FirstParagraph">
+    <w:name w:val="First Paragraph"/>
+    <w:basedOn w:val="Normal"/>
+  </w:style>
+
+  <!-- Body Text -->
+  <w:style w:type="paragraph" w:styleId="BodyText">
+    <w:name w:val="Body Text"/>
+    <w:basedOn w:val="Normal"/>
+  </w:style>
+
+</w:styles>"#);
+
+    zip.start_file("word/styles.xml", options)
+        .map_err(|e| format!("Failed to create styles.xml: {}", e))?;
+    zip.write_all(styles.as_bytes())
+        .map_err(|e| format!("Failed to write styles.xml: {}", e))?;
+
+    // word/settings.xml - document settings
+    let settings = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:zoom w:percent="100"/>
+  <w:defaultTabStop w:val="720"/>
+</w:settings>"#;
+
+    zip.start_file("word/settings.xml", options)
+        .map_err(|e| format!("Failed to create settings.xml: {}", e))?;
+    zip.write_all(settings.as_bytes())
+        .map_err(|e| format!("Failed to write settings.xml: {}", e))?;
+
+    // word/fontTable.xml - font declarations
+    let font_table = format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:font w:name="{main_font}">
+    <w:charset w:val="00"/>
+    <w:family w:val="swiss"/>
+  </w:font>
+  <w:font w:name="{mono_font}">
+    <w:charset w:val="00"/>
+    <w:family w:val="modern"/>
+    <w:pitch w:val="fixed"/>
+  </w:font>
+</w:fonts>"#);
+
+    zip.start_file("word/fontTable.xml", options)
+        .map_err(|e| format!("Failed to create fontTable.xml: {}", e))?;
+    zip.write_all(font_table.as_bytes())
+        .map_err(|e| format!("Failed to write fontTable.xml: {}", e))?;
+
+    zip.finish()
+        .map_err(|e| format!("Failed to finalize DOCX: {}", e))?;
+
+    info!("Generated reference DOCX at: {:?}", docx_path);
+    Ok(docx_path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn list_system_fonts() -> Result<Vec<String>, String> {
     use std::collections::HashSet;
@@ -651,7 +968,7 @@ pub fn run() {
             )?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_pandoc, open_file, check_command, list_system_fonts, file_exists, write_dark_mode_header, write_unicode_header, install_dependency, cancel_all_installs, uninstall_dependency, reinstall_dependency, run_command_with_output, get_downloads_path, reveal_in_finder, get_app_version])
+        .invoke_handler(tauri::generate_handler![run_pandoc, open_file, check_command, list_system_fonts, file_exists, write_dark_mode_header, write_unicode_header, generate_reference_docx, install_dependency, cancel_all_installs, uninstall_dependency, reinstall_dependency, run_command_with_output, get_downloads_path, reveal_in_finder, get_app_version])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

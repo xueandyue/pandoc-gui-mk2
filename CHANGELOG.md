@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.0] - 2025-12-02
+## [2.1.0] - 2026-01-09
+
+### Added
+- **Auto-Generated Reference Documents for DOCX/ODT**:
+  - Font settings (main font, monospace font, font size) now work for DOCX and ODT output
+  - Margin settings now work for DOCX and ODT output
+  - App automatically generates a styled reference document with your settings
+  - Proper heading styles (H1-H4) with proportional sizing
+  - Source Code and VerbatimChar styles for code blocks
+  - Uses `--reference-doc` flag transparently during conversion
+- **Windows PATH Support**:
+  - Added common Windows paths for MiKTeX, TeX Live, npm, Cargo, Chocolatey, Scoop
+  - Pandoc default install location now included in PATH
+
+### Fixed
+- **Incorrect Pandoc Flag**: Changed `--syntax-highlighting` to correct `--highlight-style` flag
+- **Invalid JSON in Mermaid Config**: Fixed `undefined` value in `.mermaid-config.json` (invalid JSON)
+- **Security: CSP Configuration**: Enabled Content Security Policy in Tauri config (was disabled)
+- **Visual Feedback for Format-Specific Settings**: UI now dims settings that don't apply to selected output format
+- **Removed Debug Logs**: Cleaned up console.log statements from production code
+- **Removed Unused Dependency**: Removed unused `sortablejs` from package.json
+- **Removed Outdated Config**: Deleted legacy `tailwind.config.js` (TailwindCSS v4 uses @plugin syntax)
+
+## [2.0.2] - 2025-12-02
 
 ### Added
 - **Automatic Update Checker**:
@@ -174,11 +197,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 2.1.0 | 2025-12-02 | Update checker, fixed bottom bar, UI text selection |
+| 2.1.0 | 2026-01-09 | DOCX reference docs, bug fixes, Windows PATH |
+| 2.0.2 | 2025-12-02 | Update checker, dependency management, dark mode, UI improvements |
 | 2.0.0 | 2025-11-27 | Major UI redesign, tabs, presets, tokens, themes |
 | 1.0.0 | 2025-11-27 | Initial release |
 
 [Unreleased]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.1.0...HEAD
-[2.1.0]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.0.0...v2.1.0
+[2.1.0]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.0.2...v2.1.0
+[2.0.2]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.0.0...v2.0.2
 [2.0.0]: https://github.com/ivg/pandoc-gui-mk2/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/ivg/pandoc-gui-mk2/releases/tag/v1.0.0

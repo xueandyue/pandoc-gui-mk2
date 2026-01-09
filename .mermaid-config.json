@@ -19,7 +19,7 @@
     "htmlLabels": false
   },
   "gantt": {
-    "useWidth": undefined
+    "useWidth": null
   },
   "securityLevel": "loose",
   "startOnLoad": true,

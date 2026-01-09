@@ -25,11 +25,9 @@ async function detectTauri() {
     // In Tauri v2, we check if the core module is available
     const { invoke } = await import('@tauri-apps/api/core');
     isTauri = true;
-    console.log('Running in Tauri mode');
     return true;
   } catch (e) {
     isTauri = false;
-    console.log('Running in web mode');
     return false;
   }
 }
@@ -110,13 +108,10 @@ async function loadSystemFonts() {
 
       systemFonts = [...fontFamilies].sort((a, b) => a.localeCompare(b));
       monoFonts = [...monoFamilies].sort((a, b) => a.localeCompare(b));
-
-      console.log(`Loaded ${systemFonts.length} system fonts, ${monoFonts.length} monospace`);
     } else {
       throw new Error('queryLocalFonts not available');
     }
   } catch (e) {
-    console.log('Local Font Access API not available, using Tauri backend');
     // Try Tauri backend to list fonts
     if (isTauri) {
       try {
@@ -125,10 +120,9 @@ async function loadSystemFonts() {
         if (fonts && fonts.length > 0) {
           systemFonts = fonts.sort((a, b) => a.localeCompare(b));
           monoFonts = fonts.filter(f => isMono(f)).sort((a, b) => a.localeCompare(b));
-          console.log(`Loaded ${systemFonts.length} fonts via Tauri`);
         }
       } catch (tauriErr) {
-        console.log('Tauri font listing not available:', tauriErr);
+        // Font listing not available - not critical
       }
     }
   }
@@ -317,6 +311,10 @@ function detectMermaid(content) {
 function handleFormatChange() {
   const format = $('outputFormat').value;
   const isPdf = format === 'pdf';
+  const isDocx = format === 'docx';
+  const isOdt = format === 'odt';
+  const isLatexBased = isPdf || format === 'latex';
+  const supportsTypography = isLatexBased || isDocx || isOdt; // Formats that support font/margin settings
   const needsStandalone = ['html', 'latex'].includes(format);
 
   // Show/hide PDF engine section
@@ -324,6 +322,100 @@ function handleFormatChange() {
 
   // Show/hide standalone option
   $('standaloneLabel').classList.toggle('hidden', !needsStandalone);
+
+  // Layout tab - margins work for PDF/LaTeX/DOCX/ODT
+  // Paper size and orientation only work for PDF/LaTeX
+  const layoutTab = document.querySelector('[aria-label="Layout"]')?.closest('.tab-content, [role="tabpanel"]');
+  if (layoutTab) {
+    // Paper size and orientation only for PDF/LaTeX
+    const paperSizeSection = $('paperSize')?.closest('.form-control');
+    const orientationSection = $('orientation')?.closest('.form-control');
+    if (paperSizeSection) {
+      if (!isLatexBased) {
+        paperSizeSection.classList.add('opacity-50');
+        paperSizeSection.setAttribute('title', 'Paper size only applies to PDF and LaTeX output');
+      } else {
+        paperSizeSection.classList.remove('opacity-50');
+        paperSizeSection.removeAttribute('title');
+      }
+    }
+    if (orientationSection) {
+      if (!isLatexBased) {
+        orientationSection.classList.add('opacity-50');
+        orientationSection.setAttribute('title', 'Orientation only applies to PDF and LaTeX output');
+      } else {
+        orientationSection.classList.remove('opacity-50');
+        orientationSection.removeAttribute('title');
+      }
+    }
+
+    // Margins work for PDF/LaTeX/DOCX/ODT
+    const marginSection = $('marginAll')?.closest('.grid, .space-y-2');
+    if (marginSection) {
+      if (!supportsTypography) {
+        marginSection.classList.add('opacity-50');
+        marginSection.setAttribute('title', 'Margins only apply to PDF, LaTeX, DOCX, and ODT output');
+      } else {
+        marginSection.classList.remove('opacity-50');
+        marginSection.removeAttribute('title');
+      }
+    }
+  }
+
+  // Fonts tab - font family, size work for PDF/LaTeX/DOCX/ODT
+  // Line height only works for PDF/LaTeX
+  const fontsTab = document.querySelector('[aria-label="Fonts"]')?.closest('.tab-content, [role="tabpanel"]');
+  if (fontsTab) {
+    // Font family and size work for PDF/LaTeX/DOCX/ODT
+    const fontControls = fontsTab.querySelectorAll('#mainFont, #monoFont, #fontSize');
+    fontControls.forEach(el => {
+      const parent = el.closest('.form-control');
+      if (parent) {
+        if (!supportsTypography) {
+          parent.classList.add('opacity-50');
+          parent.setAttribute('title', 'Font settings only apply to PDF, LaTeX, DOCX, and ODT output');
+        } else {
+          parent.classList.remove('opacity-50');
+          parent.removeAttribute('title');
+        }
+      }
+    });
+
+    // Line height only for PDF/LaTeX
+    const lineHeightControl = fontsTab.querySelector('#lineHeight')?.closest('.form-control');
+    if (lineHeightControl) {
+      if (!isLatexBased) {
+        lineHeightControl.classList.add('opacity-50');
+        lineHeightControl.setAttribute('title', 'Line height only applies to PDF and LaTeX output');
+      } else {
+        lineHeightControl.classList.remove('opacity-50');
+        lineHeightControl.removeAttribute('title');
+      }
+    }
+  }
+
+  // Content tab - headers/footers/page numbers only work for PDF
+  const headerFooterSection = document.querySelector('#headerLeft')?.closest('.grid');
+  if (headerFooterSection) {
+    if (!isPdf) {
+      headerFooterSection.classList.add('opacity-50');
+      headerFooterSection.setAttribute('title', 'Headers and footers only apply to PDF output');
+    } else {
+      headerFooterSection.classList.remove('opacity-50');
+      headerFooterSection.removeAttribute('title');
+    }
+  }
+
+  const pageNumberSection = document.querySelector('#pageNumberFormat')?.closest('.grid');
+  if (pageNumberSection) {
+    if (!isPdf) {
+      pageNumberSection.classList.add('opacity-50');
+      pageNumberSection.setAttribute('title', 'Page number settings only apply to PDF output');
+    } else {
+      pageNumberSection.classList.remove('opacity-50');
+      pageNumberSection.removeAttribute('title');
+    }
+  }
 }
 
 // Margin handling
@@ -535,7 +627,6 @@ function setTokenFieldValue(field, value) {
 function setupTokenDrag() {
   const tokenList = $('tokenList');
   if (!tokenList) {
-    console.error('tokenList element not found');
     return;
   }
 
@@ -610,10 +701,8 @@ function setupTokenDrag() {
   tokenFieldIds.forEach(id => {
     const field = $(id);
     if (!field) {
-      console.error('Token field not found:', id);
       return;
     }
-    console.log('Setting up drop target for:', id);
 
     // Use capture phase to intercept before contenteditable's default behavior
     field.addEventListener('dragover', (e) => {
@@ -746,8 +835,25 @@ function buildPandocCommand() {
 
   // Standalone flag
   const isPdf = format === 'pdf';
-  if (isPdf || ($('standalone') && $('standalone').checked)) {
+  const isDocx = format === 'docx';
+  const isOdt = format === 'odt';
+  if (isPdf || isDocx || isOdt || ($('standalone') && $('standalone').checked)) {
     args.push('-s');
+  }
+
+  // DOCX/ODT-specific options - use reference doc for styling
+  if (isDocx || isOdt) {
+    // Check if user has customized any settings that need reference doc
+    const hasCustomFont = $('mainFont').value || $('monoFont').value;
+    const hasCustomSize = $('fontSize').value && $('fontSize').value !== '12';
+    const hasCustomMargins = $('marginTop').value || $('marginBottom').value ||
+                             $('marginLeft').value || $('marginRight').value ||
+                             ($('uniformMargins').checked && $('marginAll').value);
+
+    if (hasCustomFont || hasCustomSize || hasCustomMargins) {
+      // Placeholder - will be replaced with actual reference doc path during conversion
+      args.push('--REFERENCE-DOC-PLACEHOLDER--');
+    }
   }
 
   // PDF-specific options
@@ -879,25 +985,28 @@ function buildPandocCommand() {
     }
   }
 
-  // Typography
-  if ($('mainFont').value) {
-    args.push(`-V mainfont="${$('mainFont').value}"`);
-  }
-  if ($('monoFont').value) {
-    args.push(`-V monofont="${$('monoFont').value}"`);
-  }
-  const fontSize = $('fontSize').value;
-  if (fontSize && fontSize !== '12') {
-    args.push(`-V fontsize=${fontSize}pt`);
-  }
-  if ($('lineHeight').value !== '1.5') {
-    args.push(`-V linestretch=${$('lineHeight').value}`);
+  // Typography - LaTeX variables only work for PDF/LaTeX output
+  const isLatexBased = isPdf || format === 'latex';
+  if (isLatexBased) {
+    if ($('mainFont').value) {
+      args.push(`-V mainfont="${$('mainFont').value}"`);
+    }
+    if ($('monoFont').value) {
+      args.push(`-V monofont="${$('monoFont').value}"`);
+    }
+    const fontSize = $('fontSize').value;
+    if (fontSize && fontSize !== '12') {
+      args.push(`-V fontsize=${fontSize}pt`);
+    }
+    if ($('lineHeight').value !== '1.5') {
+      args.push(`-V linestretch=${$('lineHeight').value}`);
+    }
   }
 
-  // Code highlighting (using --syntax-highlighting, replaces deprecated --highlight-style)
+  // Code highlighting
   const highlightTheme = $('highlightTheme').value;
   if (highlightTheme && highlightTheme !== 'none') {
-    args.push(`--syntax-highlighting=${highlightTheme}`);
+    args.push(`--highlight-style=${highlightTheme}`);
   }
 
   // TOC
@@ -1042,7 +1151,7 @@ function setupConversion() {
           }
         }
       } catch (e) {
-        console.log('Could not check file existence:', e);
+        // Non-critical - proceed with conversion
       }
     }
 
@@ -1057,23 +1166,50 @@ function setupConversion() {
         const { invoke } = await import('@tauri-apps/api/core');
         let command = buildPandocCommand().replace(/\\\n\s+/g, ' ');
 
+        // Handle reference document for DOCX/ODT
+        if (command.includes('--REFERENCE-DOC-PLACEHOLDER--')) {
+          $('progressBar').value = 20;
+          $('statusText').textContent = 'Generating reference document...';
+
+          // Gather margin values
+          const marginUnit = $('marginUnit').value;
+          let marginTop, marginBottom, marginLeft, marginRight;
+
+          if ($('uniformMargins').checked) {
+            const m = parseFloat($('marginAll').value) || 1;
+            marginTop = marginBottom = marginLeft = marginRight = m;
+          } else {
+            marginTop = parseFloat($('marginTop').value) || 1;
+            marginBottom = parseFloat($('marginBottom').value) || 1;
+            marginLeft = parseFloat($('marginLeft').value) || 1;
+            marginRight = parseFloat($('marginRight').value) || 1;
+          }
+
+          const refDocPath = await invoke('generate_reference_docx', {
+            mainFont: $('mainFont').value || '',
+            monoFont: $('monoFont').value || '',
+            fontSize: parseInt($('fontSize').value) || 12,
+            marginTop,
+            marginBottom,
+            marginLeft,
+            marginRight,
+            marginUnit
+          });
+
+          command = command.replace('--REFERENCE-DOC-PLACEHOLDER--', `--reference-doc="${refDocPath}"`);
+        }
+
         // Handle dark mode header file for PDF
         if (command.includes('--DARK-MODE-PLACEHOLDER--')) {
           $('progressBar').value = 25;
           $('statusText').textContent = 'Preparing dark mode...';
-          console.log('Dark mode detected, writing header file...');
           const headerPath = await invoke('write_dark_mode_header');
-          console.log('Dark mode header written to:', headerPath);
-          const beforeReplace = command;
           command = command.replace('--DARK-MODE-PLACEHOLDER--', `-H "${headerPath}"`);
-          if (beforeReplace === command) {
-            console.warn('WARNING: Placeholder replacement had no effect');
-          }
         }
 
         // Safety check: ensure no placeholder made it through
-        if (command.includes('--DARK-MODE-PLACEHOLDER--')) {
-          throw new Error('Dark mode header placeholder was not properly replaced. Please try disabling dark mode or contact support.');
+        if (command.includes('--DARK-MODE-PLACEHOLDER--') || command.includes('--REFERENCE-DOC-PLACEHOLDER--')) {
+          throw new Error('A placeholder was not properly replaced. Please try again or contact support.');
         }
 
         $('progressBar').value = 50;
@@ -1986,13 +2122,11 @@ async function checkForUpdates(silent = false) {
 
     // Fetch latest release from GitHub API
     const url = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
-    console.log('Checking for updates at:', url);
 
     let release;
     if (isTauri) {
       try {
         const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
-        console.log('Using Tauri HTTP plugin');
         const response = await tauriFetch(url, {
           method: 'GET',
           headers: {
@@ -2000,7 +2134,6 @@ async function checkForUpdates(silent = false) {
             'User-Agent': 'Pandoc-GUI-Update-Checker'
           }
         });
-        console.log('Response status:', response.status);
         if (response.status === 404) {
           // No releases published yet
           if (!silent) {
@@ -2013,9 +2146,7 @@ async function checkForUpdates(silent = false) {
         }
         release = await response.json();
       } catch (httpError) {
-        console.error('Tauri HTTP error:', httpError);
         // Fallback to native fetch if Tauri HTTP fails
-        console.log('Falling back to native fetch');
         const response = await fetch(url);
         if (response.status === 404) {
           if (!silent) {
@@ -2043,7 +2174,6 @@ async function checkForUpdates(silent = false) {
       release = await response.json();
     }
 
-    console.log('Latest release:', release.tag_name);
     const latestVersion = release.tag_name.replace(/^v/, '');
 
     if (compareVersions(latestVersion, currentAppVersion) > 0) {
