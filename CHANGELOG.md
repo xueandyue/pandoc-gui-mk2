@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-01-09
+
+### Fixed
+- **Update Checker Not Finding Updates**: Fixed incorrect GitHub repository URL in update checker (was `ivg/pandoc-gui-mk2`, now `ivg-design/pandoc-gui-mk2`)
+- **CHANGELOG Links**: Fixed repository URLs in changelog links
+
 ## [2.1.0] - 2026-01-09
 
 ### Added
@@ -197,13 +203,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.1.1 | 2026-01-09 | Fixed update checker repo URL |
 | 2.1.0 | 2026-01-09 | DOCX reference docs, bug fixes, Windows PATH |
 | 2.0.2 | 2025-12-02 | Update checker, dependency management, dark mode, UI improvements |
 | 2.0.0 | 2025-11-27 | Major UI redesign, tabs, presets, tokens, themes |
 | 1.0.0 | 2025-11-27 | Initial release |
 
-[Unreleased]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.1.0...HEAD
-[2.1.0]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.0.2...v2.1.0
-[2.0.2]: https://github.com/ivg/pandoc-gui-mk2/compare/v2.0.0...v2.0.2
-[2.0.0]: https://github.com/ivg/pandoc-gui-mk2/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/ivg/pandoc-gui-mk2/releases/tag/v1.0.0
+[Unreleased]: https://github.com/ivg-design/pandoc-gui-mk2/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/ivg-design/pandoc-gui-mk2/compare/v2.1.0...v2.1.1
+[2.1.0]: https://github.com/ivg-design/pandoc-gui-mk2/compare/v2.0.2...v2.1.0
+[2.0.2]: https://github.com/ivg-design/pandoc-gui-mk2/compare/v2.0.0...v2.0.2
+[2.0.0]: https://github.com/ivg-design/pandoc-gui-mk2/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/ivg-design/pandoc-gui-mk2/releases/tag/v1.0.0

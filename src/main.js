@@ -2085,8 +2085,8 @@ function setupFabMenu2() {
 
 // ========== UPDATE CHECKER ==========
 
-const GITHUB_REPO = 'ivg/pandoc-gui-mk2';
-let currentAppVersion = '2.0.2'; // Fallback, will be updated from Rust
+const GITHUB_REPO = 'ivg-design/pandoc-gui-mk2';
+let currentAppVersion = '2.1.1'; // Fallback, will be updated from Rust
 let latestReleaseInfo = null;
 let downloadedFilePath = null;
 
