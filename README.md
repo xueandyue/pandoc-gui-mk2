@@ -92,13 +92,15 @@ Download the latest release for your platform:
 | Windows | x64 | `Pandoc.GUI_x.x.x_x64-setup.exe` |
 | Linux | x64 | `pandoc-gui_x.x.x_amd64.deb` / `.AppImage` |
 
+Release packages bundle `pandoc` inside the app, so end users do not need to install Pandoc separately.
+
 ### Building from Source
 
 #### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
 - [Rust](https://rustup.rs/) (1.77+)
-- [Pandoc](https://pandoc.org/installing.html)
+- [Pandoc](https://pandoc.org/installing.html) for local development, or manually prepare a bundled binary before building
 
 #### Build Steps
 
@@ -109,6 +111,9 @@ cd pandoc-gui-mk2
 
 # Install dependencies
 npm install
+
+# Optional: download the latest official Pandoc binary into src-tauri/resources/
+pwsh ./scripts/prepare-bundled-pandoc.ps1 -AssetPattern "pandoc-*-windows-x86_64.zip" -ResourceSubdir "windows-x64" -BinaryName "pandoc.exe"
 
 # Development mode
 npm run tauri:dev
@@ -227,6 +232,7 @@ GitHub Actions now handles packaging in two layers:
 
 1. Every push to `main`, every pull request, and every manual run builds desktop bundles and uploads them as workflow artifacts.
 2. A GitHub Release is created when you push a version tag like `v2.1.1`, or when you manually run the `Release` workflow.
+3. Both workflows automatically download the latest official Pandoc binary for the target platform and bundle it inside the app.
 
 Before creating a release, make sure these files all use the same version:
 - `package.json`

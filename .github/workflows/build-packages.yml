@@ -24,18 +24,30 @@ jobs:
             target: aarch64-apple-darwin
             args: "--target aarch64-apple-darwin"
             artifact_name: macOS-aarch64
+            pandoc_asset_pattern: "pandoc-*-arm64-macOS.zip"
+            pandoc_resource_subdir: "macos-aarch64"
+            pandoc_binary_name: "pandoc"
           - platform: macos-latest
             target: x86_64-apple-darwin
             args: "--target x86_64-apple-darwin"
             artifact_name: macOS-x64
+            pandoc_asset_pattern: "pandoc-*-x86_64-macOS.zip"
+            pandoc_resource_subdir: "macos-x64"
+            pandoc_binary_name: "pandoc"
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             args: "--target x86_64-unknown-linux-gnu"
             artifact_name: Linux-x64
+            pandoc_asset_pattern: "pandoc-*-linux-amd64.tar.gz"
+            pandoc_resource_subdir: "linux-x64"
+            pandoc_binary_name: "pandoc"
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             args: "--target x86_64-pc-windows-msvc"
             artifact_name: Windows-x64
+            pandoc_asset_pattern: "pandoc-*-windows-x86_64.zip"
+            pandoc_resource_subdir: "windows-x64"
+            pandoc_binary_name: "pandoc.exe"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -66,6 +78,14 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Prepare bundled Pandoc
+        shell: pwsh
+        run: >
+          ./scripts/prepare-bundled-pandoc.ps1
+          -AssetPattern "${{ matrix.pandoc_asset_pattern }}"
+          -ResourceSubdir "${{ matrix.pandoc_resource_subdir }}"
+          -BinaryName "${{ matrix.pandoc_binary_name }}"
 
       - name: Build Tauri bundles
         shell: bash

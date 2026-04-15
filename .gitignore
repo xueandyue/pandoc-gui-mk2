@@ -4,3 +4,8 @@ dist/
 *.log
 .env
 .env.*
+src-tauri/resources/pandoc/**
+!src-tauri/resources/
+!src-tauri/resources/.gitkeep
+!src-tauri/resources/pandoc/
+!src-tauri/resources/pandoc/.gitkeep
