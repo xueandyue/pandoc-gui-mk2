@@ -5,8 +5,9 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::fs;
-use std::path::Path;
-use tauri::{AppHandle, Emitter};
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::path::BaseDirectory;
 use tauri::menu::{Menu, MenuItem, Submenu, PredefinedMenuItem};
 use log::{info, error};
 use zip::{ZipWriter, write::SimpleFileOptions};
@@ -96,18 +97,65 @@ fn get_extended_path() -> String {
     }
 }
 
-#[tauri::command]
-fn check_command(command: String) -> Result<String, String> {
+fn bundled_pandoc_resource_path() -> Option<&'static str> {
+    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        Some("pandoc/windows-x64/pandoc.exe")
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        Some("pandoc/linux-x64/pandoc")
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        Some("pandoc/macos-x64/pandoc")
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        Some("pandoc/macos-aarch64/pandoc")
+    } else {
+        None
+    }
+}
+
+fn get_bundled_pandoc_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    let resource_path = bundled_pandoc_resource_path()?;
+    let resolved = app.path().resolve(resource_path, BaseDirectory::Resource).ok()?;
+
+    if resolved.exists() {
+        resolved.parent().map(|parent| parent.to_path_buf())
+    } else {
+        None
+    }
+}
+
+fn build_command_path<R: Runtime>(app: &AppHandle<R>) -> String {
     let extended_path = get_extended_path();
 
+    if let Some(bundled_dir) = get_bundled_pandoc_dir(app) {
+        let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+        format!("{}{}{}", bundled_dir.to_string_lossy(), separator, extended_path)
+    } else {
+        extended_path
+    }
+}
+
+fn wrap_windows_command(command: &str) -> String {
+    if cfg!(target_os = "windows") {
+        // Force UTF-8 console output so stderr/stdout from cmd can be decoded correctly.
+        format!("chcp 65001>nul && {}", command)
+    } else {
+        command.to_string()
+    }
+}
+
+#[tauri::command]
+fn check_command(app: AppHandle, command: String) -> Result<String, String> {
+    let command_path = build_command_path(&app);
+
     let output = if cfg!(target_os = "windows") {
+        let wrapped = wrap_windows_command(&command);
         Command::new("cmd")
-            .args(["/C", &command])
+            .args(["/C", &wrapped])
+            .env("PATH", &command_path)
             .output()
     } else {
         Command::new("sh")
             .args(["-c", &command])
-            .env("PATH", &extended_path)
+            .env("PATH", &command_path)
             .output()
     };
 
@@ -124,9 +172,9 @@ fn check_command(command: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn run_pandoc(command: String) -> Result<String, String> {
+fn run_pandoc(app: AppHandle, command: String) -> Result<String, String> {
     info!("Running pandoc command: {}", command);
-    let extended_path = get_extended_path();
+    let command_path = build_command_path(&app);
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     let temp_dir = env::temp_dir();
 
@@ -165,15 +213,17 @@ fn run_pandoc(command: String) -> Result<String, String> {
     };
 
     let output = if cfg!(target_os = "windows") {
+        let wrapped = wrap_windows_command(&command);
         Command::new("cmd")
-            .args(["/C", &command])
+            .args(["/C", &wrapped])
+            .env("PATH", &command_path)
             .env("MERMAID_FILTER_FORMAT", mermaid_format)
             .env("MERMAID_FILTER_BACKGROUND", "transparent")
             .output()
     } else {
         Command::new("sh")
             .args(["-c", &command])
-            .env("PATH", &extended_path)
+            .env("PATH", &command_path)
             // Set working directory to home to avoid read-only filesystem issues
             .current_dir(&home)
             // Redirect mermaid-filter error log to temp directory
@@ -254,7 +304,7 @@ fn get_app_version() -> String {
 // Run a command with streaming output to the frontend
 #[tauri::command]
 async fn run_command_with_output(app: AppHandle, command: String, operation: String) -> Result<String, String> {
-    let extended_path = get_extended_path();
+    let command_path = build_command_path(&app);
     let install_id = NEXT_INSTALL_ID.fetch_add(1, Ordering::SeqCst);
     let cancelled = Arc::new(AtomicBool::new(false));
 
@@ -278,15 +328,17 @@ async fn run_command_with_output(app: AppHandle, command: String, operation: Str
 
     let result = tokio::task::spawn_blocking(move || {
         let mut child = if cfg!(target_os = "windows") {
+            let wrapped = wrap_windows_command(&command);
             Command::new("cmd")
-                .args(["/C", &command])
+                .args(["/C", &wrapped])
+                .env("PATH", &command_path)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
         } else {
             Command::new("sh")
                 .args(["-c", &command])
-                .env("PATH", &extended_path)
+                .env("PATH", &command_path)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
