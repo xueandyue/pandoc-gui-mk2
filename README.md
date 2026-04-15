@@ -223,28 +223,37 @@ pandoc-gui-mk2/
 
 ## Release Process
 
-Releases are automated via GitHub Actions. To trigger a release, add a release flag to your commit message:
+GitHub Actions now handles packaging in two layers:
 
-```bash
-# Patch release (bug fixes) - e.g., 2.0.0 → 2.0.1
-git commit -m "fix: description --patch"
+1. Every push to `main`, every pull request, and every manual run builds desktop bundles and uploads them as workflow artifacts.
+2. A GitHub Release is created when you push a version tag like `v2.1.1`, or when you manually run the `Release` workflow.
 
-# Minor release (new features) - e.g., 2.0.0 → 2.1.0
-git commit -m "feat: description --minor"
-
-# Major release (breaking changes) - e.g., 2.0.0 → 3.0.0
-git commit -m "feat!: description --major"
-```
-
-The version will be automatically bumped in:
+Before creating a release, make sure these files all use the same version:
 - `package.json`
 - `src-tauri/Cargo.toml`
 - `src-tauri/tauri.conf.json`
 
+You can update them with:
+
+```bash
+./scripts/bump-version.sh patch
+./scripts/bump-version.sh minor
+./scripts/bump-version.sh major
+```
+
+To publish a release to GitHub:
+
+```bash
+git tag v2.1.1
+git push origin v2.1.1
+```
+
+Or open the Actions tab and manually run the `Release` workflow with a tag such as `v2.1.1`.
+
 Builds are created for:
-- macOS (Apple Silicon + Intel)
-- Windows (x64)
-- Linux (x64 .deb + .AppImage)
+- macOS (Apple Silicon + Intel `.dmg`)
+- Windows (x64 `.msi` + `.exe`)
+- Linux (x64 `.deb` + `.AppImage` + `.rpm`)
 
 ## License
 
