@@ -53,6 +53,687 @@ const themeColors = {
 // DOM helper
 const $ = id => document.getElementById(id);
 
+const LANGUAGE_STORAGE_KEY = 'appLanguage';
+const DEFAULT_LANGUAGE = 'zh-CN';
+let currentLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) || DEFAULT_LANGUAGE;
+
+const translations = {
+  en: {
+    'app.title': 'Pandoc GUI',
+    'button.open': 'Open',
+    'button.copy': 'Copy',
+    'button.copyCommand': 'Copy Command',
+    'button.convert': 'Convert Document',
+    'button.save': 'Save',
+    'button.cancel': 'Cancel',
+    'button.close': 'Close',
+    'button.downloadUpdate': 'Download Update',
+    'button.showInFinder': 'Show in Folder',
+    'button.checkUpdates': 'Check for Updates',
+    'label.output': 'Output:',
+    'label.outputPath': 'Output: Select input file first',
+    'label.noFile': 'No file selected',
+    'label.outputPlaceholder': 'output filename',
+    'label.openWhenDone': 'Open when done',
+    'label.layout': 'Layout',
+    'label.fonts': 'Fonts',
+    'label.document': 'Document',
+    'label.content': 'Content',
+    'label.advanced': 'Advanced',
+    'label.command': 'Command',
+    'label.paperSize': 'Paper Size',
+    'label.orientation': 'Orientation',
+    'label.fontSize': 'Font Size (pt)',
+    'label.lineHeight': 'Line Height',
+    'label.margins': 'Margins',
+    'label.uniform': 'Uniform',
+    'label.unit': 'Unit',
+    'label.allSides': 'All Sides',
+    'label.top': 'Top',
+    'label.bottom': 'Bottom',
+    'label.left': 'Left',
+    'label.right': 'Right',
+    'label.mainFont': 'Main Font',
+    'label.monoFont': 'Monospace Font',
+    'label.codeHighlighting': 'Code Highlighting',
+    'label.theme': 'Theme',
+    'label.lineNumbers': 'Line Numbers',
+    'label.background': 'Background',
+    'label.bgColor': 'BG Color',
+    'label.preview': 'Preview',
+    'label.titlePage': 'Title Page',
+    'label.tableOfContents': 'Table of Contents',
+    'label.numberSections': 'Number Sections',
+    'label.listOfFigures': 'List of Figures',
+    'label.listOfTables': 'List of Tables',
+    'label.darkMode': 'Dark Mode',
+    'label.standalone': 'Standalone',
+    'label.tocDepth': 'TOC Depth:',
+    'label.newPageAfterToc': 'New page after TOC',
+    'label.documentClass': 'Document Class',
+    'label.topLevelHeadings': 'Top-Level Headings',
+    'label.tokens': 'Tokens (drag to fields)',
+    'label.title': 'Title',
+    'label.author': 'Author',
+    'label.date': 'Date',
+    'label.headers': 'Headers',
+    'label.footers': 'Footers',
+    'label.pageNumberFormat': 'Page Number Format',
+    'label.position': 'Position',
+    'label.style': 'Style',
+    'label.mermaid': 'Mermaid Diagrams',
+    'label.detectedSvg': 'Detected (SVG)',
+    'label.coloredLinks': 'Colored links',
+    'label.extraArgs': 'Extra Pandoc Arguments',
+    'label.extraArgsHint': 'Advanced',
+    'label.presets': 'Presets',
+    'label.themeMenu': 'Theme',
+    'label.languageMenu': 'Language',
+    'label.loadSelected': 'Load Selected',
+    'label.saveNew': 'Save New...',
+    'label.updateSelected': 'Update Selected',
+    'label.deleteSelected': 'Delete Selected',
+    'label.dependencies': 'Dependencies',
+    'label.reset': 'Reset',
+    'label.about': 'About',
+    'label.presetName': 'Preset Name',
+    'label.savePreset': 'Save Preset',
+    'label.dependencyCheck': 'Dependency Check',
+    'label.checkingDependencies': 'Checking dependencies...',
+    'label.installing': 'Installing...',
+    'label.version': 'Version',
+    'label.githubRepository': 'GitHub Repository',
+    'label.frontendDeps': 'Frontend Dependencies',
+    'label.backendDeps': 'Backend Dependencies (Rust)',
+    'label.poweredBy': 'Powered By',
+    'label.license': 'License',
+    'label.updateAvailable': 'Update Available',
+    'label.releaseNotes': 'Release Notes',
+    'label.loading': 'Loading...',
+    'label.downloadingUpdate': 'Downloading update...',
+    'label.downloadComplete': 'Download complete!',
+    'label.savedTo': 'Saved to:',
+    'label.newVersionAvailable': 'A new version of Pandoc GUI is available!',
+    'label.current': 'Current:',
+    'label.latest': 'Latest:',
+    'label.aboutIntro': 'A modern, cross-platform graphical user interface for Pandoc, the universal document converter.',
+    'label.aboutRights': 'All rights reserved.',
+    'label.licenseSummary': 'Pandoc GUI is released under the MIT License.',
+    'label.systemDefault': 'System Default',
+    'label.fontPermission': '(Grant font permission or use Tauri app)',
+    'label.selectPreset': 'Select preset...',
+    'label.enterPresetName': 'Enter preset name...',
+    'label.changeOutputFolder': 'Change output folder',
+    'label.removeToken': 'Remove',
+    'value.portrait': 'Portrait',
+    'value.landscape': 'Landscape',
+    'value.single': 'Single',
+    'value.double': 'Double',
+    'value.light': 'Light',
+    'value.dark': 'Dark',
+    'value.default': 'Default',
+    'value.article': 'Article',
+    'value.report': 'Report',
+    'value.book': 'Book',
+    'value.memoir': 'Memoir',
+    'value.komaArticle': 'KOMA Article',
+    'value.parts': 'Parts',
+    'value.chapters': 'Chapters',
+    'value.sections': 'Sections',
+    'value.pageN': 'Page N',
+    'value.pageNOfX': 'Page N of X',
+    'value.nOfX': 'N of X',
+    'value.nOnly': 'N only',
+    'value.bottomCenter': 'Bottom Center',
+    'value.bottomRight': 'Bottom Right',
+    'value.topRight': 'Top Right',
+    'desc.titlePage': 'Separate title page',
+    'desc.toc': 'Auto from headings',
+    'desc.numberSections': '1. Intro, 1.1 Sub...',
+    'desc.lof': 'Figure index',
+    'desc.lot': 'Table index',
+    'desc.darkMode': 'Dark background',
+    'desc.standalone': 'Complete document',
+    'placeholder.left': 'Left',
+    'placeholder.center': 'Center',
+    'placeholder.right': 'Right',
+    'placeholder.page': 'Page {page}',
+    'message.insertedToken': 'Inserted {token}',
+    'message.commandCopied': 'Command copied to clipboard!',
+    'message.commandCopyFailed': 'Failed to copy command',
+    'message.selectInputFirst': 'Please select an input file first',
+    'message.fileOverwrite': 'File "{file}" already exists. Overwrite?',
+    'message.converting': 'Converting...',
+    'message.generatingReferenceDoc': 'Generating reference document...',
+    'message.preparingDarkMode': 'Preparing dark mode...',
+    'message.runningPandoc': 'Running pandoc...',
+    'message.finalizing': 'Finalizing...',
+    'message.conversionComplete': 'Conversion complete!',
+    'message.conversionSuccess': 'Document converted successfully!',
+    'message.copyCommandTerminal': 'Copy the command to run in your terminal',
+    'message.webModeCopy': 'In web mode, copy the command and run it in your terminal',
+    'message.error': 'Error: {error}',
+    'message.conversionFailed': 'Conversion failed: {error}',
+    'message.openFileDialogFailed': 'Failed to open file dialog: {error}',
+    'message.openFolderDialogFailed': 'Failed to open folder dialog: {error}',
+    'message.outputDirDesktopOnly': 'Output directory can only be changed in desktop app',
+    'message.enterPresetName': 'Please enter a preset name',
+    'message.selectPresetFirst': 'Please select a preset first',
+    'message.presetSaved': 'Preset "{name}" saved',
+    'message.presetLoaded': 'Preset "{name}" loaded',
+    'message.presetUpdated': 'Preset "{name}" updated',
+    'message.deletePreset': 'Are you sure you want to delete the preset "{name}"?',
+    'message.presetDeleted': 'Preset "{name}" deleted',
+    'message.settingsReset': 'Settings reset to defaults',
+    'message.runInstall': 'Run: brew install {name} (or npm/cargo equivalent)',
+    'message.reinstallConfirm': 'Reinstall {name}? This will uninstall and reinstall the package.',
+    'message.confirmReinstallTitle': 'Confirm Reinstall',
+    'message.uninstallConfirm': 'Are you sure you want to uninstall {name}?',
+    'message.confirmUninstallTitle': 'Confirm Uninstall',
+    'message.starting': 'Starting...',
+    'message.operationCancelled': 'Operation cancelled',
+    'message.cancelFailed': 'Failed to cancel: {error}',
+    'message.releaseNotFound': 'No releases found. You are running the latest development version.',
+    'message.alreadyLatest': 'You are running the latest version!',
+    'message.updateCheckFailed': 'Update check failed: {error}',
+    'message.noReleaseNotes': 'No release notes available.',
+    'message.noCompatibleDownload': 'No compatible download found for your platform.',
+    'message.downloadFailed': 'Download failed: {error}',
+    'message.updateDownloaded': 'Update downloaded successfully!',
+    'message.openLocationFailed': 'Failed to open file location',
+    'message.placeholderNotReplaced': 'A placeholder was not properly replaced. Please try again or contact support.',
+    'message.pdfOnlyPaperSize': 'Paper size only applies to PDF and LaTeX output',
+    'message.pdfOnlyOrientation': 'Orientation only applies to PDF and LaTeX output',
+    'message.marginsFormats': 'Margins only apply to PDF, LaTeX, DOCX, and ODT output',
+    'message.fontSettingsFormats': 'Font settings only apply to PDF, LaTeX, DOCX, and ODT output',
+    'message.lineHeightFormats': 'Line height only applies to PDF and LaTeX output',
+    'message.headersFootersPdf': 'Headers and footers only apply to PDF output',
+    'message.pageNumbersPdf': 'Page number settings only apply to PDF output',
+    'message.noPdfEngine': 'No PDF engine installed. Check Dependencies to install one.',
+    'message.notInstalled': 'not installed',
+    'message.mermaidNotInstalled': 'mermaid-filter not installed. Check Dependencies to install.',
+    'message.crossrefNotInstalled': 'pandoc-crossref not installed. Check Dependencies to install.',
+    'generic.document': 'document',
+    'generic.output': 'output',
+    'generic.user': 'User',
+    'dep.required': 'required',
+    'dep.optional': 'optional',
+    'dep.pandoc.desc': 'Document converter (required)',
+    'dep.tectonic.desc': 'PDF engine - auto-downloads packages (recommended)',
+    'dep.texlive.desc': 'TeX Live - includes pdflatex, xelatex, lualatex',
+    'dep.mermaid.desc': 'Mermaid diagram support',
+    'dep.crossref.desc': 'Cross-reference filter',
+    'dep.docs': 'Docs',
+    'dep.reinstall': 'Reinstall',
+    'dep.uninstall': 'Uninstall',
+    'dep.installHomebrew': 'Install via Homebrew',
+    'dep.installApt': 'Install via apt',
+    'dep.installNpm': 'Install via npm',
+    'dep.installCargo': 'Install via cargo'
+  },
+  'zh-CN': {
+    'app.title': 'Pandoc 图形界面',
+    'button.open': '打开',
+    'button.copy': '复制',
+    'button.copyCommand': '复制命令',
+    'button.convert': '转换文档',
+    'button.save': '保存',
+    'button.cancel': '取消',
+    'button.close': '关闭',
+    'button.downloadUpdate': '下载更新',
+    'button.showInFinder': '打开所在文件夹',
+    'button.checkUpdates': '检查更新',
+    'label.output': '输出:',
+    'label.outputPath': '输出: 请先选择输入文件',
+    'label.noFile': '未选择文件',
+    'label.outputPlaceholder': '输出文件名',
+    'label.openWhenDone': '完成后打开',
+    'label.layout': '版式',
+    'label.fonts': '字体',
+    'label.document': '文档',
+    'label.content': '内容',
+    'label.advanced': '高级',
+    'label.command': '命令',
+    'label.paperSize': '纸张大小',
+    'label.orientation': '方向',
+    'label.fontSize': '字号 (pt)',
+    'label.lineHeight': '行高',
+    'label.margins': '页边距',
+    'label.uniform': '统一',
+    'label.unit': '单位',
+    'label.allSides': '四边一致',
+    'label.top': '上',
+    'label.bottom': '下',
+    'label.left': '左',
+    'label.right': '右',
+    'label.mainFont': '正文字体',
+    'label.monoFont': '等宽字体',
+    'label.codeHighlighting': '代码高亮',
+    'label.theme': '主题',
+    'label.lineNumbers': '行号',
+    'label.background': '背景',
+    'label.bgColor': '背景色',
+    'label.preview': '预览',
+    'label.titlePage': '标题页',
+    'label.tableOfContents': '目录',
+    'label.numberSections': '章节编号',
+    'label.listOfFigures': '插图目录',
+    'label.listOfTables': '表格目录',
+    'label.darkMode': '深色模式',
+    'label.standalone': '独立文档',
+    'label.tocDepth': '目录深度:',
+    'label.newPageAfterToc': '目录后新起一页',
+    'label.documentClass': '文档类',
+    'label.topLevelHeadings': '顶级标题层级',
+    'label.tokens': '令牌（拖到字段中）',
+    'label.title': '标题',
+    'label.author': '作者',
+    'label.date': '日期',
+    'label.headers': '页眉',
+    'label.footers': '页脚',
+    'label.pageNumberFormat': '页码格式',
+    'label.position': '位置',
+    'label.style': '样式',
+    'label.mermaid': 'Mermaid 图表',
+    'label.detectedSvg': '已检测 (SVG)',
+    'label.coloredLinks': '彩色链接',
+    'label.extraArgs': '额外 Pandoc 参数',
+    'label.extraArgsHint': '高级',
+    'label.presets': '预设',
+    'label.themeMenu': '主题',
+    'label.languageMenu': '语言',
+    'label.loadSelected': '加载所选',
+    'label.saveNew': '另存为新预设...',
+    'label.updateSelected': '更新所选',
+    'label.deleteSelected': '删除所选',
+    'label.dependencies': '依赖检查',
+    'label.reset': '重置',
+    'label.about': '关于',
+    'label.presetName': '预设名称',
+    'label.savePreset': '保存预设',
+    'label.dependencyCheck': '依赖检查',
+    'label.checkingDependencies': '正在检查依赖...',
+    'label.installing': '正在安装...',
+    'label.version': '版本',
+    'label.githubRepository': 'GitHub 仓库',
+    'label.frontendDeps': '前端依赖',
+    'label.backendDeps': '后端依赖 (Rust)',
+    'label.poweredBy': '技术支持',
+    'label.license': '许可证',
+    'label.updateAvailable': '发现更新',
+    'label.releaseNotes': '发行说明',
+    'label.loading': '加载中...',
+    'label.downloadingUpdate': '正在下载更新...',
+    'label.downloadComplete': '下载完成！',
+    'label.savedTo': '保存到:',
+    'label.newVersionAvailable': 'Pandoc GUI 有新版本可用！',
+    'label.current': '当前:',
+    'label.latest': '最新:',
+    'label.aboutIntro': '一个现代化、跨平台的 Pandoc 通用文档转换器图形界面。',
+    'label.aboutRights': '保留所有权利。',
+    'label.licenseSummary': 'Pandoc GUI 基于 MIT 许可证发布。',
+    'label.systemDefault': '系统默认',
+    'label.fontPermission': '（请授权字体访问，或使用 Tauri 桌面应用）',
+    'label.selectPreset': '选择预设...',
+    'label.enterPresetName': '输入预设名称...',
+    'label.changeOutputFolder': '更改输出文件夹',
+    'label.removeToken': '移除',
+    'value.portrait': '纵向',
+    'value.landscape': '横向',
+    'value.single': '单倍',
+    'value.double': '双倍',
+    'value.light': '浅色',
+    'value.dark': '深色',
+    'value.default': '默认',
+    'value.article': '文章',
+    'value.report': '报告',
+    'value.book': '书籍',
+    'value.memoir': '回忆录',
+    'value.komaArticle': 'KOMA 文章',
+    'value.parts': '部分',
+    'value.chapters': '章节',
+    'value.sections': '小节',
+    'value.pageN': '第 N 页',
+    'value.pageNOfX': '第 N / X 页',
+    'value.nOfX': 'N / X',
+    'value.nOnly': '仅 N',
+    'value.bottomCenter': '底部居中',
+    'value.bottomRight': '底部右侧',
+    'value.topRight': '顶部右侧',
+    'desc.titlePage': '单独生成标题页',
+    'desc.toc': '根据标题自动生成',
+    'desc.numberSections': '1. 引言, 1.1 小节...',
+    'desc.lof': '插图索引',
+    'desc.lot': '表格索引',
+    'desc.darkMode': '深色背景',
+    'desc.standalone': '完整文档',
+    'placeholder.left': '左侧',
+    'placeholder.center': '中间',
+    'placeholder.right': '右侧',
+    'placeholder.page': '第 {page} 页',
+    'message.insertedToken': '已插入 {token}',
+    'message.commandCopied': '命令已复制到剪贴板！',
+    'message.commandCopyFailed': '复制命令失败',
+    'message.selectInputFirst': '请先选择输入文件',
+    'message.fileOverwrite': '文件“{file}”已存在，是否覆盖？',
+    'message.converting': '正在转换...',
+    'message.generatingReferenceDoc': '正在生成参考文档...',
+    'message.preparingDarkMode': '正在准备深色模式...',
+    'message.runningPandoc': '正在运行 pandoc...',
+    'message.finalizing': '正在收尾...',
+    'message.conversionComplete': '转换完成！',
+    'message.conversionSuccess': '文档转换成功！',
+    'message.copyCommandTerminal': '请复制命令并在终端中运行',
+    'message.webModeCopy': '网页模式下请复制命令并在终端中运行',
+    'message.error': '错误: {error}',
+    'message.conversionFailed': '转换失败: {error}',
+    'message.openFileDialogFailed': '打开文件对话框失败: {error}',
+    'message.openFolderDialogFailed': '打开文件夹对话框失败: {error}',
+    'message.outputDirDesktopOnly': '只能在桌面应用中更改输出目录',
+    'message.enterPresetName': '请输入预设名称',
+    'message.selectPresetFirst': '请先选择预设',
+    'message.presetSaved': '预设“{name}”已保存',
+    'message.presetLoaded': '预设“{name}”已加载',
+    'message.presetUpdated': '预设“{name}”已更新',
+    'message.deletePreset': '确定要删除预设“{name}”吗？',
+    'message.presetDeleted': '预设“{name}”已删除',
+    'message.settingsReset': '已重置为默认设置',
+    'message.runInstall': '请运行: brew install {name}（或使用 npm/cargo 等方式）',
+    'message.reinstallConfirm': '要重新安装 {name} 吗？这会先卸载再安装。',
+    'message.confirmReinstallTitle': '确认重新安装',
+    'message.uninstallConfirm': '确定要卸载 {name} 吗？',
+    'message.confirmUninstallTitle': '确认卸载',
+    'message.starting': '正在开始...',
+    'message.operationCancelled': '操作已取消',
+    'message.cancelFailed': '取消失败: {error}',
+    'message.releaseNotFound': '未找到已发布版本，你当前运行的是最新开发版本。',
+    'message.alreadyLatest': '你正在运行最新版本！',
+    'message.updateCheckFailed': '检查更新失败: {error}',
+    'message.noReleaseNotes': '暂无发行说明。',
+    'message.noCompatibleDownload': '未找到适用于当前平台的下载包。',
+    'message.downloadFailed': '下载失败: {error}',
+    'message.updateDownloaded': '更新下载成功！',
+    'message.openLocationFailed': '打开文件位置失败',
+    'message.placeholderNotReplaced': '占位符未被正确替换。请重试，或联系维护者。',
+    'message.pdfOnlyPaperSize': '纸张大小仅适用于 PDF 和 LaTeX 输出',
+    'message.pdfOnlyOrientation': '页面方向仅适用于 PDF 和 LaTeX 输出',
+    'message.marginsFormats': '页边距仅适用于 PDF、LaTeX、DOCX 和 ODT 输出',
+    'message.fontSettingsFormats': '字体设置仅适用于 PDF、LaTeX、DOCX 和 ODT 输出',
+    'message.lineHeightFormats': '行高仅适用于 PDF 和 LaTeX 输出',
+    'message.headersFootersPdf': '页眉和页脚仅适用于 PDF 输出',
+    'message.pageNumbersPdf': '页码设置仅适用于 PDF 输出',
+    'message.noPdfEngine': '未安装 PDF 引擎。请在“依赖检查”中安装。',
+    'message.notInstalled': '未安装',
+    'message.mermaidNotInstalled': '未安装 mermaid-filter。请在“依赖检查”中安装。',
+    'message.crossrefNotInstalled': '未安装 pandoc-crossref。请在“依赖检查”中安装。',
+    'generic.document': '文档',
+    'generic.output': '输出',
+    'generic.user': '用户',
+    'dep.required': '必需',
+    'dep.optional': '可选',
+    'dep.pandoc.desc': '文档转换器（必需）',
+    'dep.tectonic.desc': 'PDF 引擎，可自动下载宏包（推荐）',
+    'dep.texlive.desc': 'TeX Live，包含 pdflatex、xelatex、lualatex',
+    'dep.mermaid.desc': 'Mermaid 图表支持',
+    'dep.crossref.desc': '交叉引用过滤器',
+    'dep.docs': '文档',
+    'dep.reinstall': '重装',
+    'dep.uninstall': '卸载',
+    'dep.installHomebrew': '通过 Homebrew 安装',
+    'dep.installApt': '通过 apt 安装',
+    'dep.installNpm': '通过 npm 安装',
+    'dep.installCargo': '通过 cargo 安装'
+  }
+};
+
+function t(key, vars = {}) {
+  const locale = translations[currentLanguage] || translations[DEFAULT_LANGUAGE];
+  const fallback = translations.en;
+  const template = locale[key] ?? fallback[key] ?? key;
+  return template.replace(/\{(\w+)\}/g, (_, name) => vars[name] ?? `{${name}}`);
+}
+
+function setText(selector, key, vars = {}) {
+  const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+  if (el) el.textContent = t(key, vars);
+}
+
+function setAttr(selector, attr, key, vars = {}) {
+  const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+  if (el) el.setAttribute(attr, t(key, vars));
+}
+
+function setAllText(selector, key, vars = {}) {
+  document.querySelectorAll(selector).forEach(el => {
+    el.textContent = t(key, vars);
+  });
+}
+
+function formatToday() {
+  const locale = currentLanguage === 'zh-CN' ? 'zh-CN' : 'en-US';
+  return new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function updateOutputDisplayText() {
+  const outName = $('outputName')?.value || t('generic.output');
+  const ext = getExtensionForFormat($('outputFormat')?.value || 'pdf');
+  const dir = outputDirPath || '';
+
+  if (dir) {
+    $('outputDir').textContent = dir + outName + '.' + ext;
+  } else if ($('outputDir')) {
+    $('outputDir').textContent = t('label.outputPath');
+  }
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage;
+  document.title = t('app.title');
+
+  const setNodeText = (node, key, vars = {}) => {
+    if (node) node.textContent = t(key, vars);
+  };
+  const labelFor = id => $(id)?.closest('.form-control')?.querySelector('.label-text');
+  const cardTitleFor = id => $(id)?.closest('label')?.querySelector('.label-text');
+  const cardDescFor = id => $(id)?.closest('label')?.querySelector('p');
+
+  setText('#browseInputText', 'button.open');
+  setText('#copyCmdText', 'button.copy');
+  setText('#convertBtnText', 'button.convert');
+  if (!inputFilePath) setText('#inputPath', 'label.noFile');
+  setAttr('#browseOutput', 'title', 'label.changeOutputFolder');
+  setAttr('#outputName', 'placeholder', 'label.outputPlaceholder');
+  updateOutputDisplayText();
+
+  const tabs = document.querySelectorAll('input[name="mainTabs"][role="tab"]');
+  ['label.layout', 'label.fonts', 'label.document', 'label.content', 'label.advanced', 'label.command']
+    .forEach((key, index) => {
+      if (tabs[index]) tabs[index].setAttribute('aria-label', t(key));
+    });
+
+  setNodeText($('outputDir')?.previousElementSibling, 'label.output');
+
+  setNodeText(labelFor('paperSize'), 'label.paperSize');
+  setNodeText(labelFor('orientation'), 'label.orientation');
+  setNodeText(labelFor('fontSize'), 'label.fontSize');
+  setNodeText(labelFor('lineHeight'), 'label.lineHeight');
+  setNodeText(document.querySelector('#paperSize')?.closest('.grid')?.querySelector('.divider'), 'label.margins');
+  setNodeText($('uniformMargins')?.closest('.form-control')?.querySelector('.label-text'), 'label.uniform');
+  setNodeText($('marginUnit')?.closest('.form-control')?.querySelector('.label-text'), 'label.unit');
+  setNodeText($('uniformMarginInput')?.querySelector('.label-text'), 'label.allSides');
+  setNodeText($('marginTop')?.closest('.form-control')?.querySelector('.label-text'), 'label.top');
+  setNodeText($('marginBottom')?.closest('.form-control')?.querySelector('.label-text'), 'label.bottom');
+  setNodeText($('marginLeft')?.closest('.form-control')?.querySelector('.label-text'), 'label.left');
+  setNodeText($('marginRight')?.closest('.form-control')?.querySelector('.label-text'), 'label.right');
+  setNodeText(document.querySelector('#orientation option[value="portrait"]'), 'value.portrait');
+  setNodeText(document.querySelector('#orientation option[value="landscape"]'), 'value.landscape');
+  setNodeText(document.querySelector('#lineHeight option[value="1"]'), 'value.single');
+  setNodeText(document.querySelector('#lineHeight option[value="2"]'), 'value.double');
+
+  setNodeText(labelFor('mainFont'), 'label.mainFont');
+  setNodeText(labelFor('monoFont'), 'label.monoFont');
+  setNodeText(document.querySelector('#highlightTheme')?.closest('.grid')?.querySelector('.divider'), 'label.codeHighlighting');
+  setNodeText(labelFor('highlightTheme'), 'label.theme');
+  setNodeText($('lineNumbers')?.closest('.form-control')?.querySelector('.label-text'), 'label.lineNumbers');
+  setNodeText($('codeBlockBg')?.closest('.form-control')?.querySelector('.label-text'), 'label.background');
+  setNodeText(labelFor('codeBlockBgColor'), 'label.bgColor');
+  setNodeText(document.querySelector('#codePreview')?.previousElementSibling?.querySelector('.label-text'), 'label.preview');
+  const optgroups = document.querySelectorAll('#highlightTheme optgroup');
+  if (optgroups[0]) optgroups[0].label = t('value.light');
+  if (optgroups[1]) optgroups[1].label = t('value.dark');
+  if ($('codePreview')) {
+    $('codePreview').innerHTML = currentLanguage === 'zh-CN'
+      ? '<div><span class="cm">// 问候函数</span></div><div><span class="kw">function</span> <span class="fn">hello</span>() {</div><div>  <span class="kw">const</span> msg = <span class="st">"你好，世界！"</span>;</div><div>  <span class="kw">return</span> msg;</div><div>}</div>'
+      : '<div><span class="cm">// Greeting function</span></div><div><span class="kw">function</span> <span class="fn">hello</span>() {</div><div>  <span class="kw">const</span> msg = <span class="st">"Hello, World!"</span>;</div><div>  <span class="kw">return</span> msg;</div><div>}</div>';
+  }
+
+  setNodeText(cardTitleFor('titlePage'), 'label.titlePage');
+  setNodeText(cardDescFor('titlePage'), 'desc.titlePage');
+  setNodeText(cardTitleFor('toc'), 'label.tableOfContents');
+  setNodeText(cardDescFor('toc'), 'desc.toc');
+  setNodeText(cardTitleFor('numberSections'), 'label.numberSections');
+  setNodeText(cardDescFor('numberSections'), 'desc.numberSections');
+  setNodeText(cardTitleFor('lof'), 'label.listOfFigures');
+  setNodeText(cardDescFor('lof'), 'desc.lof');
+  setNodeText(cardTitleFor('lot'), 'label.listOfTables');
+  setNodeText(cardDescFor('lot'), 'desc.lot');
+  setNodeText(cardTitleFor('darkMode'), 'label.darkMode');
+  setNodeText(cardDescFor('darkMode'), 'desc.darkMode');
+  setNodeText(cardTitleFor('standalone'), 'label.standalone');
+  setNodeText(cardDescFor('standalone'), 'desc.standalone');
+  setNodeText(document.querySelector('#tocOptions > div > span'), 'label.tocDepth');
+  setNodeText($('tocNewPage')?.closest('label')?.querySelector('.label-text'), 'label.newPageAfterToc');
+  setNodeText(labelFor('documentClass'), 'label.documentClass');
+  setNodeText(labelFor('topLevelDiv'), 'label.topLevelHeadings');
+  setNodeText(document.querySelector('.doc-class-option[data-value="article"] span:first-child'), 'value.article');
+  setNodeText(document.querySelector('.doc-class-option[data-value="report"] span:first-child'), 'value.report');
+  setNodeText(document.querySelector('.doc-class-option[data-value="book"] span:first-child'), 'value.book');
+  setNodeText(document.querySelector('.doc-class-option[data-value="memoir"] span:first-child'), 'value.memoir');
+  setNodeText(document.querySelector('.doc-class-option[data-value="scrartcl"] span:first-child'), 'value.komaArticle');
+  setNodeText(document.querySelector('.top-level-option[data-value="default"] span:first-child'), 'value.default');
+  setNodeText(document.querySelector('.top-level-option[data-value="part"] span:first-child'), 'value.parts');
+  setNodeText(document.querySelector('.top-level-option[data-value="chapter"] span:first-child'), 'value.chapters');
+  setNodeText(document.querySelector('.top-level-option[data-value="section"] span:first-child'), 'value.sections');
+
+  const docClassLabelMap = { article: 'value.article', report: 'value.report', book: 'value.book', memoir: 'value.memoir', scrartcl: 'value.komaArticle' };
+  setNodeText($('documentClassLabel'), docClassLabelMap[$('documentClass')?.value] || 'value.report');
+  const topLevelLabelMap = { default: 'value.default', part: 'value.parts', chapter: 'value.chapters', section: 'value.sections' };
+  setNodeText($('topLevelDivLabel'), topLevelLabelMap[$('topLevelDiv')?.value] || 'value.default');
+
+  setNodeText(document.querySelector('#tokensCollapse + .collapse-title'), 'label.tokens');
+  setNodeText(labelFor('docTitle'), 'label.title');
+  setNodeText(labelFor('docAuthor'), 'label.author');
+  setNodeText(labelFor('docDate'), 'label.date');
+  setNodeText(document.querySelector('#headerLeft')?.closest('.grid')?.children[0], 'label.headers');
+  setNodeText(document.querySelector('#footerLeft')?.closest('.grid')?.children[4], 'label.footers');
+  setAttr('#headerLeft', 'data-placeholder', 'placeholder.left');
+  setAttr('#headerCenter', 'data-placeholder', 'placeholder.center');
+  setAttr('#headerRight', 'data-placeholder', 'placeholder.right');
+  setAttr('#footerLeft', 'data-placeholder', 'placeholder.left');
+  setAttr('#footerCenter', 'data-placeholder', 'placeholder.page');
+  setAttr('#footerRight', 'data-placeholder', 'placeholder.right');
+  setNodeText(labelFor('pageNumberFormat'), 'label.pageNumberFormat');
+  setNodeText(document.querySelector('#pageNumberFormat option[value="page"]'), 'value.pageN');
+  setNodeText(document.querySelector('#pageNumberFormat option[value="page-of-x"]'), 'value.pageNOfX');
+  setNodeText(document.querySelector('#pageNumberFormat option[value="n-of-x"]'), 'value.nOfX');
+  setNodeText(document.querySelector('#pageNumberFormat option[value="number"]'), 'value.nOnly');
+  setNodeText(labelFor('pageNumberPosition'), 'label.position');
+  setNodeText(document.querySelector('#pageNumberPosition option[value="bottom-center"]'), 'value.bottomCenter');
+  setNodeText(document.querySelector('#pageNumberPosition option[value="bottom-right"]'), 'value.bottomRight');
+  setNodeText(document.querySelector('#pageNumberPosition option[value="top-right"]'), 'value.topRight');
+  setNodeText(labelFor('pageNumberStyle'), 'label.style');
+
+  setNodeText(document.querySelector('#mermaidDetected')?.previousElementSibling, 'label.mermaid');
+  setText('#mermaidDetected', 'label.detectedSvg');
+  setNodeText($('colorLinks')?.closest('label')?.querySelector('.label-text'), 'label.coloredLinks');
+  setNodeText(labelFor('extraArgs'), 'label.extraArgs');
+  setNodeText(document.querySelector('#extraArgs')?.closest('.form-control')?.querySelector('.label-text-alt'), 'label.extraArgsHint');
+
+  setText('#fabLanguageLabel', 'label.languageMenu');
+  setText('#fabCheckDepsText', 'label.dependencies');
+  setText('#fabResetDefaultsText', 'label.reset');
+  setText('#fabCopyCmdText', 'button.copyCommand');
+  setText('#fabAboutText', 'label.about');
+  const fabLabels = document.querySelectorAll('#fabMenu .fab-accordion .flex-1.text-left');
+  setNodeText(fabLabels[0], 'label.presets');
+  setNodeText(fabLabels[1], 'label.themeMenu');
+  setNodeText(fabLabels[2], 'label.languageMenu');
+  setText('#loadPreset', 'label.loadSelected');
+  setText('#savePreset', 'label.saveNew');
+  setText('#updatePreset', 'label.updateSelected');
+  setText('#deletePreset', 'label.deleteSelected');
+
+  const presetOption = $('#presetSelect')?.options?.[0];
+  if (presetOption) presetOption.textContent = t('label.selectPreset');
+
+  setNodeText($('openOnComplete')?.closest('label')?.querySelector('.label-text'), 'label.openWhenDone');
+
+  const mainFontDefault = $('#mainFont')?.options?.[0];
+  const monoFontDefault = $('#monoFont')?.options?.[0];
+  if (mainFontDefault) mainFontDefault.textContent = t('label.systemDefault');
+  if (monoFontDefault) monoFontDefault.textContent = t('label.systemDefault');
+  if (systemFonts.length === 0) {
+    const fontHint = $('#mainFont')?.options?.[1];
+    if (fontHint?.disabled) fontHint.textContent = t('label.fontPermission');
+  }
+
+  setText('#progressCancelBtnText', 'button.cancel');
+  setText('#progressCloseBtn', 'button.close');
+  setText('#presetModal h3', 'label.savePreset');
+  setText('#presetModal .label-text', 'label.presetName');
+  setAttr('#presetNameInput', 'placeholder', 'label.enterPresetName');
+  setText('#presetSaveConfirm', 'button.save');
+  setText('#presetModal .modal-action form .btn', 'button.cancel');
+  setText('#depsModal h3', 'label.dependencyCheck');
+  setText('#depsResults .loading + span', 'label.checkingDependencies');
+  setText('#depsModal .modal-action .btn', 'button.close');
+  setText('#progressTitle', 'label.installing');
+  setText('#aboutTitleText', 'app.title');
+  setText('#checkUpdateBtnText', 'button.checkUpdates');
+  setText('#aboutModal .mb-4 p.text-sm.mb-2', 'label.aboutIntro');
+  setText('#aboutModal .mb-4 p.text-sm.text-base-content\\/70', 'label.aboutRights');
+  setText('#githubRepoText', 'label.githubRepository');
+  setText('#aboutModal .collapse:nth-of-type(1) .collapse-title', 'label.frontendDeps');
+  setText('#aboutModal .collapse:nth-of-type(2) .collapse-title', 'label.backendDeps');
+  setText('#aboutModal .collapse:nth-of-type(3) .collapse-title', 'label.poweredBy');
+  setText('#aboutModal .collapse:nth-of-type(4) .collapse-title', 'label.license');
+  setText('#aboutModal .collapse:nth-of-type(4) .collapse-content p.mb-2', 'label.licenseSummary');
+  setText('#aboutModal .modal-action .btn', 'button.close');
+  const versionNode = $('appVersion')?.parentElement;
+  if (versionNode) versionNode.childNodes[0].textContent = `${t('label.version')} `;
+
+  setText('#updateTitle', 'label.updateAvailable');
+  setText('#updateInfo > p', 'label.newVersionAvailable');
+  setText('#updateInfo .collapse-title', 'label.releaseNotes');
+  setText('#updateReleaseNotes p', 'label.loading');
+  setText('#downloadProgress > p', 'label.downloadingUpdate');
+  setText('#downloadComplete .alert span', 'label.downloadComplete');
+  setText('#updateDownloadBtn', 'button.downloadUpdate');
+  setText('#showInFinderBtn', 'button.showInFinder');
+  setText('#updateCloseBtn', 'button.close');
+  const currentLatest = document.querySelectorAll('#updateInfo .flex.justify-between.text-sm.text-base-content\\/70 > span');
+  if (currentLatest[0]) currentLatest[0].childNodes[0].textContent = `${t('label.current')} `;
+  if (currentLatest[1]) currentLatest[1].childNodes[0].textContent = `${t('label.latest')} `;
+  const savedToNode = $('downloadPath')?.parentElement;
+  if (savedToNode) savedToNode.childNodes[0].textContent = `${t('label.savedTo')} `;
+
+  document.querySelectorAll('.swap-on').forEach(el => { el.textContent = currentLanguage === 'zh-CN' ? '开' : 'ON'; });
+  document.querySelectorAll('.swap-off').forEach(el => { el.textContent = currentLanguage === 'zh-CN' ? '关' : 'OFF'; });
+}
+
+function setLanguage(language) {
+  currentLanguage = translations[language] ? language : DEFAULT_LANGUAGE;
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLanguage);
+  applyLanguage();
+  handleFormatChange();
+  updateCodePreview();
+}
+
+function setupLanguageSwitcher() {
+  $('setLanguageZh')?.addEventListener('click', () => setLanguage('zh-CN'));
+  $('setLanguageEn')?.addEventListener('click', () => setLanguage('en'));
+}
+
 // Theme Management
 function initTheme() {
   const savedTheme = localStorage.getItem('appTheme') || 'dim';
@@ -148,7 +829,7 @@ async function loadSystemFonts() {
   if (systemFonts.length === 0) {
     const opt = document.createElement('option');
     opt.value = '';
-    opt.textContent = '(Grant font permission or use Tauri app)';
+    opt.textContent = t('label.fontPermission');
     opt.disabled = true;
     mainFontSelect.appendChild(opt);
   }
@@ -177,7 +858,7 @@ async function setupFileHandling() {
         }
       } catch (err) {
         console.error('Dialog error:', err);
-        showToast('Failed to open file dialog: ' + err, 'error');
+        showToast(t('message.openFileDialogFailed', { error: err }), 'error');
       }
     } else {
       inputFileEl.click();
@@ -206,10 +887,10 @@ async function setupFileHandling() {
         }
       } catch (err) {
         console.error('Dialog error:', err);
-        showToast('Failed to open folder dialog: ' + err, 'error');
+        showToast(t('message.openFolderDialogFailed', { error: err }), 'error');
       }
     } else {
-      showToast('Output directory can only be changed in desktop app', 'info');
+      showToast(t('message.outputDirDesktopOnly'), 'info');
     }
   });
 
@@ -262,14 +943,14 @@ async function handleTauriFileSelect(filePath) {
 
 // Update output display with actual path
 function updateOutputDisplay() {
-  const outName = $('outputName').value || 'output';
+  const outName = $('outputName').value || t('generic.output');
   const ext = getExtensionForFormat($('outputFormat').value);
   const dir = outputDirPath || '';
 
   if (dir) {
     $('outputDir').textContent = dir + outName + '.' + ext;
   } else {
-    $('outputDir').textContent = 'Output: Select input file first';
+    $('outputDir').textContent = t('label.outputPath');
   }
 }
 
@@ -333,7 +1014,7 @@ function handleFormatChange() {
     if (paperSizeSection) {
       if (!isLatexBased) {
         paperSizeSection.classList.add('opacity-50');
-        paperSizeSection.setAttribute('title', 'Paper size only applies to PDF and LaTeX output');
+        paperSizeSection.setAttribute('title', t('message.pdfOnlyPaperSize'));
       } else {
         paperSizeSection.classList.remove('opacity-50');
         paperSizeSection.removeAttribute('title');
@@ -342,7 +1023,7 @@ function handleFormatChange() {
     if (orientationSection) {
       if (!isLatexBased) {
         orientationSection.classList.add('opacity-50');
-        orientationSection.setAttribute('title', 'Orientation only applies to PDF and LaTeX output');
+        orientationSection.setAttribute('title', t('message.pdfOnlyOrientation'));
       } else {
         orientationSection.classList.remove('opacity-50');
         orientationSection.removeAttribute('title');
@@ -354,7 +1035,7 @@ function handleFormatChange() {
     if (marginSection) {
       if (!supportsTypography) {
         marginSection.classList.add('opacity-50');
-        marginSection.setAttribute('title', 'Margins only apply to PDF, LaTeX, DOCX, and ODT output');
+        marginSection.setAttribute('title', t('message.marginsFormats'));
       } else {
         marginSection.classList.remove('opacity-50');
         marginSection.removeAttribute('title');
@@ -373,7 +1054,7 @@ function handleFormatChange() {
       if (parent) {
         if (!supportsTypography) {
           parent.classList.add('opacity-50');
-          parent.setAttribute('title', 'Font settings only apply to PDF, LaTeX, DOCX, and ODT output');
+          parent.setAttribute('title', t('message.fontSettingsFormats'));
         } else {
           parent.classList.remove('opacity-50');
           parent.removeAttribute('title');
@@ -386,7 +1067,7 @@ function handleFormatChange() {
     if (lineHeightControl) {
       if (!isLatexBased) {
         lineHeightControl.classList.add('opacity-50');
-        lineHeightControl.setAttribute('title', 'Line height only applies to PDF and LaTeX output');
+        lineHeightControl.setAttribute('title', t('message.lineHeightFormats'));
       } else {
         lineHeightControl.classList.remove('opacity-50');
         lineHeightControl.removeAttribute('title');
@@ -399,7 +1080,7 @@ function handleFormatChange() {
   if (headerFooterSection) {
     if (!isPdf) {
       headerFooterSection.classList.add('opacity-50');
-      headerFooterSection.setAttribute('title', 'Headers and footers only apply to PDF output');
+      headerFooterSection.setAttribute('title', t('message.headersFootersPdf'));
     } else {
       headerFooterSection.classList.remove('opacity-50');
       headerFooterSection.removeAttribute('title');
@@ -410,7 +1091,7 @@ function handleFormatChange() {
   if (pageNumberSection) {
     if (!isPdf) {
       pageNumberSection.classList.add('opacity-50');
-      pageNumberSection.setAttribute('title', 'Page number settings only apply to PDF output');
+      pageNumberSection.setAttribute('title', t('message.pageNumbersPdf'));
     } else {
       pageNumberSection.classList.remove('opacity-50');
       pageNumberSection.removeAttribute('title');
@@ -670,7 +1351,7 @@ function setupTokenDrag() {
         } else {
           insertTokenText(target, tokenValue);
         }
-        showToast(`Inserted ${tokenValue}`, 'success');
+        showToast(t('message.insertedToken', { token: tokenValue }), 'success');
       }
     });
 
@@ -760,7 +1441,7 @@ function setupTokenDrag() {
 
           field.focus();
           updateCommandPreview();
-          showToast(`Inserted ${tokenValue}`, 'success');
+          showToast(t('message.insertedToken', { token: tokenValue }), 'success');
         });
       }
     }, true); // Capture phase
@@ -793,7 +1474,7 @@ function setupTokenDrag() {
       const tokenValue = e.dataTransfer.getData('text/plain');
       if (tokenValue && tokenValue.startsWith('{') && tokenValue.endsWith('}')) {
         insertTokenText(input, tokenValue);
-        showToast(`Inserted ${tokenValue}`, 'success');
+        showToast(t('message.insertedToken', { token: tokenValue }), 'success');
       }
     });
   });
@@ -803,15 +1484,15 @@ function setupTokenDrag() {
 function replaceMetadataTokens(str) {
   if (!str) return str;
   const now = new Date();
-  const today = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const today = formatToday();
   const year = now.getFullYear().toString();
-  const baseName = inputFileName ? inputFileName.replace(/\.[^/.]+$/, '') : 'document';
+  const baseName = inputFileName ? inputFileName.replace(/\.[^/.]+$/, '') : t('generic.document');
 
   return str
     .replace(/\{today\}/g, today)
     .replace(/\{year\}/g, year)
     .replace(/\{file\}/g, baseName)
-    .replace(/\{user\}/g, 'User');
+    .replace(/\{user\}/g, t('generic.user'));
 }
 
 // Build Pandoc Command
@@ -819,7 +1500,7 @@ function buildPandocCommand() {
   const args = ['pandoc'];
 
   // Input file
-  const input = inputFilePath || 'input.md';
+  const input = inputFilePath || `${t('generic.document')}.md`;
   args.push(`"${input}"`);
 
   // Output format
@@ -827,7 +1508,7 @@ function buildPandocCommand() {
   args.push(`-t ${format}`);
 
   // Output file
-  const outName = $('outputName').value || 'output';
+  const outName = $('outputName').value || t('generic.output');
   const ext = getExtensionForFormat(format);
   const dir = outputDirPath || './';
   const finalOutput = dir + outName + '.' + ext;
@@ -1108,9 +1789,9 @@ function setupCopyCommand() {
     const singleLineCmd = cmd.replace(/\\\n\s+/g, ' ');
     try {
       await navigator.clipboard.writeText(singleLineCmd);
-      showToast('Command copied to clipboard!', 'success');
+      showToast(t('message.commandCopied'), 'success');
     } catch (err) {
-      showToast('Failed to copy command', 'error');
+      showToast(t('message.commandCopyFailed'), 'error');
     }
   });
 }
@@ -1132,11 +1813,11 @@ function showToast(message, type = 'info') {
 function setupConversion() {
   $('convertBtn').addEventListener('click', async () => {
     if (!inputFilePath) {
-      showToast('Please select an input file first', 'warning');
+      showToast(t('message.selectInputFirst'), 'warning');
       return;
     }
 
-    const outName = $('outputName').value || 'output';
+    const outName = $('outputName').value || t('generic.output');
     const ext = getExtensionForFormat($('outputFormat').value);
     const finalPath = (outputDirPath || './') + outName + '.' + ext;
 
@@ -1146,7 +1827,7 @@ function setupConversion() {
         const { invoke } = await import('@tauri-apps/api/core');
         const exists = await invoke('file_exists', { path: finalPath });
         if (exists) {
-          if (!confirm(`File "${outName}.${ext}" already exists. Overwrite?`)) {
+          if (!confirm(t('message.fileOverwrite', { file: `${outName}.${ext}` }))) {
             return;
           }
         }
@@ -1156,7 +1837,7 @@ function setupConversion() {
     }
 
     $('statusArea').classList.remove('hidden');
-    $('statusText').textContent = 'Converting...';
+    $('statusText').textContent = t('message.converting');
     $('progressBar').max = 100;
     $('progressBar').value = 10;
     $('convertBtn').disabled = true;
@@ -1169,7 +1850,7 @@ function setupConversion() {
         // Handle reference document for DOCX/ODT
         if (command.includes('--REFERENCE-DOC-PLACEHOLDER--')) {
           $('progressBar').value = 20;
-          $('statusText').textContent = 'Generating reference document...';
+          $('statusText').textContent = t('message.generatingReferenceDoc');
 
           // Gather margin values
           const marginUnit = $('marginUnit').value;
@@ -1202,27 +1883,27 @@ function setupConversion() {
         // Handle dark mode header file for PDF
         if (command.includes('--DARK-MODE-PLACEHOLDER--')) {
           $('progressBar').value = 25;
-          $('statusText').textContent = 'Preparing dark mode...';
+          $('statusText').textContent = t('message.preparingDarkMode');
           const headerPath = await invoke('write_dark_mode_header');
           command = command.replace('--DARK-MODE-PLACEHOLDER--', `-H "${headerPath}"`);
         }
 
         // Safety check: ensure no placeholder made it through
         if (command.includes('--DARK-MODE-PLACEHOLDER--') || command.includes('--REFERENCE-DOC-PLACEHOLDER--')) {
-          throw new Error('A placeholder was not properly replaced. Please try again or contact support.');
+          throw new Error(t('message.placeholderNotReplaced'));
         }
 
         $('progressBar').value = 50;
-        $('statusText').textContent = 'Running pandoc...';
+        $('statusText').textContent = t('message.runningPandoc');
         await invoke('run_pandoc', { command });
 
         $('progressBar').value = 90;
-        $('statusText').textContent = 'Finalizing...';
+        $('statusText').textContent = t('message.finalizing');
         setTimeout(() => {
-          $('statusText').textContent = 'Conversion complete!';
+          $('statusText').textContent = t('message.conversionComplete');
           $('progressBar').value = 100;
         }, 200);
-        showToast('Document converted successfully!', 'success');
+        showToast(t('message.conversionSuccess'), 'success');
 
         // Open file if checkbox is checked
         if ($('openOnComplete').checked) {
@@ -1231,14 +1912,14 @@ function setupConversion() {
       } else {
         // Web mode - can't actually run pandoc
         setTimeout(() => {
-          $('statusText').textContent = 'Copy the command to run in your terminal';
+          $('statusText').textContent = t('message.copyCommandTerminal');
           $('progressBar').value = 100;
-          showToast('In web mode, copy the command and run it in your terminal', 'info');
+          showToast(t('message.webModeCopy'), 'info');
         }, 500);
       }
     } catch (err) {
-      $('statusText').textContent = `Error: ${err}`;
-      showToast('Conversion failed: ' + err, 'error');
+      $('statusText').textContent = t('message.error', { error: err });
+      showToast(t('message.conversionFailed', { error: err }), 'error');
     } finally {
       $('convertBtn').disabled = !inputFilePath;
     }
@@ -1366,7 +2047,7 @@ function setupPresets() {
   $('presetSaveConfirm').addEventListener('click', () => {
     const name = $('presetNameInput').value.trim();
     if (!name) {
-      showToast('Please enter a preset name', 'warning');
+      showToast(t('message.enterPresetName'), 'warning');
       return;
     }
     const presets = getPresets();
@@ -1375,7 +2056,7 @@ function setupPresets() {
     updatePresetDropdown();
     $('presetSelect').value = name;
     $('presetModal').close();
-    showToast(`Preset "${name}" saved`, 'success');
+    showToast(t('message.presetSaved', { name }), 'success');
   });
 
   // Allow Enter key in preset name input
@@ -1389,40 +2070,40 @@ function setupPresets() {
   $('loadPreset').addEventListener('click', () => {
     const name = $('presetSelect').value;
     if (!name) {
-      showToast('Please select a preset first', 'warning');
+      showToast(t('message.selectPresetFirst'), 'warning');
       return;
     }
     const presets = getPresets();
     if (presets[name]) {
       applySettings(presets[name]);
-      showToast(`Preset "${name}" loaded`, 'success');
+      showToast(t('message.presetLoaded', { name }), 'success');
     }
   });
 
   $('updatePreset').addEventListener('click', () => {
     const name = $('presetSelect').value;
     if (!name) {
-      showToast('Please select a preset first', 'warning');
+      showToast(t('message.selectPresetFirst'), 'warning');
       return;
     }
     const presets = getPresets();
     presets[name] = getCurrentSettings();
     savePresetsToStorage(presets);
-    showToast(`Preset "${name}" updated`, 'success');
+    showToast(t('message.presetUpdated', { name }), 'success');
   });
 
   $('deletePreset').addEventListener('click', () => {
     const name = $('presetSelect').value;
     if (!name) {
-      showToast('Please select a preset first', 'warning');
+      showToast(t('message.selectPresetFirst'), 'warning');
       return;
     }
-    if (!confirm(`Are you sure you want to delete the preset "${name}"?`)) return;
+    if (!confirm(t('message.deletePreset', { name }))) return;
     const presets = getPresets();
     delete presets[name];
     savePresetsToStorage(presets);
     updatePresetDropdown();
-    showToast(`Preset "${name}" deleted`, 'info');
+    showToast(t('message.presetDeleted', { name }), 'info');
   });
 
   // Double-click to load
@@ -1447,7 +2128,7 @@ function setupFabMenu() {
     e.preventDefault();
     resetToDefaults();
     document.activeElement?.blur();
-    showToast('Settings reset to defaults', 'info');
+    showToast(t('message.settingsReset'), 'info');
   });
 
   // Copy command from FAB
@@ -1456,9 +2137,9 @@ function setupFabMenu() {
     const cmd = $('commandPreview').textContent;
     const singleLineCmd = cmd.replace(/\\\n\s+/g, ' ');
     navigator.clipboard.writeText(singleLineCmd).then(() => {
-      showToast('Command copied to clipboard!', 'success');
+      showToast(t('message.commandCopied'), 'success');
     }).catch(() => {
-      showToast('Failed to copy command', 'error');
+      showToast(t('message.commandCopyFailed'), 'error');
     });
     document.activeElement?.blur();
   });
@@ -1507,17 +2188,17 @@ async function checkDependencies() {
   results.innerHTML = `
     <div class="flex items-center justify-center py-4">
       <span class="loading loading-spinner loading-md"></span>
-      <span class="ml-2">Checking dependencies...</span>
+      <span class="ml-2">${t('label.checkingDependencies')}</span>
     </div>
   `;
   modal.showModal();
 
   const deps = [
-    { name: 'pandoc', cmd: 'pandoc --version', required: true, desc: 'Document converter (required)' },
-    { name: 'tectonic', cmd: 'tectonic --version', required: false, desc: 'PDF engine - auto-downloads packages (recommended)' },
-    { name: 'texlive', cmd: 'pdflatex --version', required: false, desc: 'TeX Live - includes pdflatex, xelatex, lualatex' },
-    { name: 'mermaid-filter', cmd: 'which mermaid-filter', required: false, desc: 'Mermaid diagram support' },
-    { name: 'pandoc-crossref', cmd: 'pandoc-crossref --version', required: false, desc: 'Cross-reference filter' },
+    { name: 'pandoc', cmd: 'pandoc --version', required: true, desc: t('dep.pandoc.desc') },
+    { name: 'tectonic', cmd: 'tectonic --version', required: false, desc: t('dep.tectonic.desc') },
+    { name: 'texlive', cmd: 'pdflatex --version', required: false, desc: t('dep.texlive.desc') },
+    { name: 'mermaid-filter', cmd: 'which mermaid-filter', required: false, desc: t('dep.mermaid.desc') },
+    { name: 'pandoc-crossref', cmd: 'pandoc-crossref --version', required: false, desc: t('dep.crossref.desc') },
   ];
 
   const checkResults = [];
@@ -1563,19 +2244,19 @@ async function checkDependencies() {
       const buttons = [];
 
       if (info.brew) {
-        buttons.push(`<button class="btn btn-xs btn-primary install-dep-btn" data-method="brew" data-dep="${dep.name}" title="Install via Homebrew">Homebrew</button>`);
+        buttons.push(`<button class="btn btn-xs btn-primary install-dep-btn" data-method="brew" data-dep="${dep.name}" title="${t('dep.installHomebrew')}">Homebrew</button>`);
       }
       if (info.apt) {
-        buttons.push(`<button class="btn btn-xs btn-secondary install-dep-btn" data-method="apt" data-dep="${dep.name}" title="Install via apt">apt</button>`);
+        buttons.push(`<button class="btn btn-xs btn-secondary install-dep-btn" data-method="apt" data-dep="${dep.name}" title="${t('dep.installApt')}">apt</button>`);
       }
       if (info.npm) {
-        buttons.push(`<button class="btn btn-xs btn-accent install-dep-btn" data-method="npm" data-dep="${dep.name}" title="Install via npm">npm</button>`);
+        buttons.push(`<button class="btn btn-xs btn-accent install-dep-btn" data-method="npm" data-dep="${dep.name}" title="${t('dep.installNpm')}">npm</button>`);
       }
       if (info.cargo) {
-        buttons.push(`<button class="btn btn-xs btn-info install-dep-btn" data-method="cargo" data-dep="${dep.name}" title="Install via cargo">cargo</button>`);
+        buttons.push(`<button class="btn btn-xs btn-info install-dep-btn" data-method="cargo" data-dep="${dep.name}" title="${t('dep.installCargo')}">cargo</button>`);
       }
       if (info.url) {
-        buttons.push(`<a href="${info.url}" target="_blank" class="btn btn-xs btn-ghost">Docs</a>`);
+        buttons.push(`<a href="${info.url}" target="_blank" class="btn btn-xs btn-ghost">${t('dep.docs')}</a>`);
       }
       // Show note for texlive (special case - no auto-install)
       if (info.note) {
@@ -1591,8 +2272,8 @@ async function checkDependencies() {
       const info = depInstallInfo[dep.name];
       const defaultMethod = info?.brew ? 'brew' : (info?.npm ? 'npm' : (info?.cargo ? 'cargo' : 'brew'));
       actionButtons = `<div class="flex gap-1 mt-1">
-        <button class="btn btn-xs btn-ghost reinstall-dep-btn" data-dep="${dep.name}" data-method="${defaultMethod}" title="Reinstall ${dep.name}">Reinstall</button>
-        <button class="btn btn-xs btn-ghost text-error uninstall-dep-btn" data-dep="${dep.name}" title="Uninstall ${dep.name}">Uninstall</button>
+        <button class="btn btn-xs btn-ghost reinstall-dep-btn" data-dep="${dep.name}" data-method="${defaultMethod}" title="${t('dep.reinstall')} ${dep.name}">${t('dep.reinstall')}</button>
+        <button class="btn btn-xs btn-ghost text-error uninstall-dep-btn" data-dep="${dep.name}" title="${t('dep.uninstall')} ${dep.name}">${t('dep.uninstall')}</button>
       </div>`;
     }
 
@@ -1600,7 +2281,7 @@ async function checkDependencies() {
       <div class="flex items-start gap-3 p-2 rounded-lg bg-base-200 ${statusClass}" data-dep-row="${dep.name}">
         <div class="mt-0.5">${statusIcon}</div>
         <div class="flex-1">
-          <div class="font-medium">${dep.name} ${dep.required ? '<span class="badge badge-xs badge-error">required</span>' : '<span class="badge badge-xs badge-ghost">optional</span>'}</div>
+          <div class="font-medium">${dep.name} ${dep.required ? `<span class="badge badge-xs badge-error">${t('dep.required')}</span>` : `<span class="badge badge-xs badge-ghost">${t('dep.optional')}</span>`}</div>
           <div class="text-xs text-base-content/70">${dep.desc}</div>
           ${dep.version ? `<div class="text-xs font-mono text-base-content/50">${dep.version}</div>` : ''}
           ${actionButtons}
@@ -1616,10 +2297,10 @@ async function checkDependencies() {
       const depName = btn.dataset.dep;
 
       if (isTauri) {
-        await runDepOperation('install_dependency', { name: depName, method }, `Installing ${depName}`);
+        await runDepOperation('install_dependency', { name: depName, method }, `${t('label.installing')} ${depName}`);
       } else {
         // Web mode - show info
-        showToast(`Run: brew install ${depName} (or npm/cargo equivalent)`, 'info');
+        showToast(t('message.runInstall', { name: depName }), 'info');
       }
     });
   });
@@ -1635,8 +2316,8 @@ async function checkDependencies() {
       if (isTauri) {
         // Use Tauri's dialog API for proper async confirmation
         const { ask } = await import('@tauri-apps/plugin-dialog');
-        const confirmed = await ask(`Reinstall ${depName}? This will uninstall and reinstall the package.`, {
-          title: 'Confirm Reinstall',
+        const confirmed = await ask(t('message.reinstallConfirm', { name: depName }), {
+          title: t('message.confirmReinstallTitle'),
           kind: 'warning'
         });
 
@@ -1644,7 +2325,7 @@ async function checkDependencies() {
           return;
         }
 
-        await runDepOperation('reinstall_dependency', { name: depName, method }, `Reinstalling ${depName}`);
+        await runDepOperation('reinstall_dependency', { name: depName, method }, `${t('dep.reinstall')} ${depName}`);
       }
     });
   });
@@ -1659,8 +2340,8 @@ async function checkDependencies() {
       if (isTauri) {
         // Use Tauri's dialog API for proper async confirmation
         const { ask } = await import('@tauri-apps/plugin-dialog');
-        const confirmed = await ask(`Are you sure you want to uninstall ${depName}?`, {
-          title: 'Confirm Uninstall',
+        const confirmed = await ask(t('message.uninstallConfirm', { name: depName }), {
+          title: t('message.confirmUninstallTitle'),
           kind: 'warning'
         });
 
@@ -1668,7 +2349,7 @@ async function checkDependencies() {
           return;
         }
 
-        await runDepOperation('uninstall_dependency', { name: depName }, `Uninstalling ${depName}`);
+        await runDepOperation('uninstall_dependency', { name: depName }, `${t('dep.uninstall')} ${depName}`);
       }
     });
   });
@@ -1692,7 +2373,7 @@ async function runDepOperation(command, params, title) {
   // Reset modal
   progressTitle.textContent = title;
   progressCommand.textContent = '';
-  progressOutput.textContent = 'Starting...\n';
+  progressOutput.textContent = `${t('message.starting')}\n`;
   cancelBtn.classList.remove('hidden');
   closeBtn.classList.add('hidden');
 
@@ -1729,11 +2410,11 @@ async function runDepOperation(command, params, title) {
   const handleCancel = async () => {
     try {
       await invoke('cancel_all_installs');
-      progressOutput.textContent += '\n⚠ Operation cancelled\n';
+      progressOutput.textContent += `\n⚠ ${t('message.operationCancelled')}\n`;
       cancelBtn.classList.add('hidden');
       closeBtn.classList.remove('hidden');
     } catch (e) {
-      progressOutput.textContent += `\nFailed to cancel: ${e}\n`;
+      progressOutput.textContent += `\n${t('message.cancelFailed', { error: e })}\n`;
     }
   };
 
@@ -1784,7 +2465,7 @@ function updateFeatureAvailability() {
   if (pdfDropdown) {
     if (!hasPdfEngine) {
       pdfDropdown.classList.add('opacity-50', 'pointer-events-none');
-      pdfDropdown.setAttribute('title', 'No PDF engine installed. Check Dependencies to install one.');
+      pdfDropdown.setAttribute('title', t('message.noPdfEngine'));
     } else {
       pdfDropdown.classList.remove('opacity-50', 'pointer-events-none');
       pdfDropdown.removeAttribute('title');
@@ -1809,7 +2490,7 @@ function updateFeatureAvailability() {
           const label = li.querySelector('span');
           if (label && !label.dataset.originalText) {
             label.dataset.originalText = label.textContent;
-            label.textContent += ' (not installed)';
+            label.textContent += ` (${t('message.notInstalled')})`;
           }
         } else {
           li.classList.remove('opacity-40');
@@ -1853,7 +2534,7 @@ function updateFeatureAvailability() {
     if (mermaidSection) {
       if (!hasMermaid) {
         mermaidSection.classList.add('opacity-50');
-        mermaidSection.setAttribute('title', 'mermaid-filter not installed. Check Dependencies to install.');
+        mermaidSection.setAttribute('title', t('message.mermaidNotInstalled'));
       } else {
         mermaidSection.classList.remove('opacity-50');
         mermaidSection.removeAttribute('title');
@@ -1869,7 +2550,7 @@ function updateFeatureAvailability() {
       crossrefLabel.classList.add('opacity-50');
       crossrefCheckbox.disabled = true;
       crossrefCheckbox.checked = false;
-      crossrefLabel.setAttribute('title', 'pandoc-crossref not installed. Check Dependencies to install.');
+      crossrefLabel.setAttribute('title', t('message.crossrefNotInstalled'));
     } else {
       crossrefLabel.classList.remove('opacity-50');
       crossrefCheckbox.disabled = false;
@@ -1946,8 +2627,9 @@ function resetToDefaults() {
   $('tocDepth').value = '3';
   $('tocNewPage').checked = false;
   $('documentClass').value = 'report';
-  $('documentClassLabel').textContent = 'Report';
+  $('documentClassLabel').textContent = t('value.report');
   $('topLevelDiv').value = 'default';
+  $('topLevelDivLabel').textContent = t('value.default');
   if ($('darkMode')) $('darkMode').checked = false;
 
   // Content (use innerHTML for contenteditable fields)
@@ -2137,7 +2819,7 @@ async function checkForUpdates(silent = false) {
         if (response.status === 404) {
           // No releases published yet
           if (!silent) {
-            showToast('No releases found. You are running the latest development version.', 'info');
+            showToast(t('message.releaseNotFound'), 'info');
           }
           return false;
         }
@@ -2150,7 +2832,7 @@ async function checkForUpdates(silent = false) {
         const response = await fetch(url);
         if (response.status === 404) {
           if (!silent) {
-            showToast('No releases found. You are running the latest development version.', 'info');
+            showToast(t('message.releaseNotFound'), 'info');
           }
           return false;
         }
@@ -2164,7 +2846,7 @@ async function checkForUpdates(silent = false) {
       const response = await fetch(url);
       if (response.status === 404) {
         if (!silent) {
-          showToast('No releases found. You are running the latest development version.', 'info');
+          showToast(t('message.releaseNotFound'), 'info');
         }
         return false;
       }
@@ -2184,14 +2866,14 @@ async function checkForUpdates(silent = false) {
     } else {
       // Already up to date
       if (!silent) {
-        showToast('You are running the latest version!', 'success');
+        showToast(t('message.alreadyLatest'), 'success');
       }
       return false;
     }
   } catch (e) {
     console.error('Failed to check for updates:', e);
     if (!silent) {
-      showToast(`Update check failed: ${e.message}`, 'error');
+      showToast(t('message.updateCheckFailed', { error: e.message }), 'error');
     }
     return false;
   }
@@ -2208,7 +2890,7 @@ function showUpdateModal(release) {
   $('downloadComplete').classList.add('hidden');
   $('updateDownloadBtn').classList.remove('hidden');
   $('showInFinderBtn').classList.add('hidden');
-  $('updateTitle').textContent = 'Update Available';
+  $('updateTitle').textContent = t('label.updateAvailable');
   downloadedFilePath = null;
 
   // Fill in version info
@@ -2227,7 +2909,7 @@ function showUpdateModal(release) {
       .replace(/\n/g, '<br>');
     notesContainer.innerHTML = `<p>${notes}</p>`;
   } else {
-    notesContainer.innerHTML = '<p class="text-base-content/70">No release notes available.</p>';
+    notesContainer.innerHTML = `<p class="text-base-content/70">${t('message.noReleaseNotes')}</p>`;
   }
 
   modal.showModal();
@@ -2266,7 +2948,7 @@ async function downloadUpdate() {
 
   const asset = getDownloadAsset(latestReleaseInfo);
   if (!asset) {
-    showToast('No compatible download found for your platform.', 'error');
+    showToast(t('message.noCompatibleDownload'), 'error');
     return;
   }
 
@@ -2277,7 +2959,7 @@ async function downloadUpdate() {
   $('updateInfo').classList.add('hidden');
   $('downloadProgress').classList.remove('hidden');
   $('updateDownloadBtn').classList.add('hidden');
-  $('updateTitle').textContent = 'Downloading Update...';
+  $('updateTitle').textContent = t('label.downloadingUpdate');
 
   const progressBar = $('downloadProgressBar');
   const percentText = $('downloadPercent');
@@ -2316,18 +2998,18 @@ async function downloadUpdate() {
     $('downloadComplete').classList.remove('hidden');
     $('showInFinderBtn').classList.remove('hidden');
     $('downloadPath').textContent = filePath;
-    $('updateTitle').textContent = 'Download Complete';
+    $('updateTitle').textContent = t('label.downloadComplete');
 
-    showToast('Update downloaded successfully!', 'success');
+    showToast(t('message.updateDownloaded'), 'success');
   } catch (e) {
     console.error('Download failed:', e);
-    showToast(`Download failed: ${e.message}`, 'error');
+    showToast(t('message.downloadFailed', { error: e.message }), 'error');
 
     // Reset modal state
     $('downloadProgress').classList.add('hidden');
     $('updateInfo').classList.remove('hidden');
     $('updateDownloadBtn').classList.remove('hidden');
-    $('updateTitle').textContent = 'Update Available';
+    $('updateTitle').textContent = t('label.updateAvailable');
   }
 }
 
@@ -2340,7 +3022,7 @@ async function showInFinder() {
     await invoke('reveal_in_finder', { path: downloadedFilePath });
   } catch (e) {
     console.error('Failed to reveal in finder:', e);
-    showToast('Failed to open file location', 'error');
+    showToast(t('message.openLocationFailed'), 'error');
   }
 }
 
@@ -2380,6 +3062,7 @@ async function init() {
   setupInputListeners();
   setupPresets();
   setupFabMenu();
+  setupLanguageSwitcher();
   setupPdfEngineDropdown();
   setupFabMenu2();
   setupUpdateChecker();
@@ -2402,6 +3085,8 @@ async function init() {
 
   // Initial format change to set up visibility
   handleFormatChange();
+  applyLanguage();
+  updateCodePreview();
 
   // Initial command preview
   updateCommandPreview();
