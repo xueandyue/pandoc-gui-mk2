@@ -1,3 +1,10 @@
+import {
+  buildOutputPath,
+  deriveTauriFileState,
+  ensureTrailingSeparator,
+  getSyntaxHighlightingArgument
+} from './command-utils.js';
+
 // Pandoc GUI v2 - Main Application Logic
 
 // State
@@ -881,7 +888,7 @@ async function setupFileHandling() {
           multiple: false
         });
         if (selected) {
-          outputDirPath = selected.endsWith('/') ? selected : selected + '/';
+          outputDirPath = ensureTrailingSeparator(selected);
           updateOutputDisplay();
           updateCommandPreview();
         }
@@ -908,22 +915,17 @@ async function setupFileHandling() {
 // Handle file selection in Tauri
 async function handleTauriFileSelect(filePath) {
   inputFilePath = filePath;
-  inputFileName = filePath.split('/').pop();
+  const derivedState = deriveTauriFileState(filePath);
+  inputFileName = derivedState.inputFileName;
 
   // Update input path display
   $('inputPath').textContent = filePath;
 
   // Set output directory from input file path
-  const lastSlash = filePath.lastIndexOf('/');
-  if (lastSlash > 0) {
-    outputDirPath = filePath.substring(0, lastSlash + 1);
-  } else {
-    outputDirPath = './';
-  }
+  outputDirPath = derivedState.outputDirPath;
 
   // Set output filename (without extension)
-  const baseName = inputFileName.replace(/\.[^/.]+$/, '');
-  $('outputName').value = baseName;
+  $('outputName').value = derivedState.outputName;
 
   // Read file content for mermaid detection using Tauri fs
   try {
@@ -948,7 +950,7 @@ function updateOutputDisplay() {
   const dir = outputDirPath || '';
 
   if (dir) {
-    $('outputDir').textContent = dir + outName + '.' + ext;
+    $('outputDir').textContent = buildOutputPath(dir, outName, ext);
   } else {
     $('outputDir').textContent = t('label.outputPath');
   }
@@ -1510,8 +1512,7 @@ function buildPandocCommand() {
   // Output file
   const outName = $('outputName').value || t('generic.output');
   const ext = getExtensionForFormat(format);
-  const dir = outputDirPath || './';
-  const finalOutput = dir + outName + '.' + ext;
+  const finalOutput = buildOutputPath(outputDirPath, outName, ext);
   args.push(`-o "${finalOutput}"`);
 
   // Standalone flag
@@ -1686,8 +1687,9 @@ function buildPandocCommand() {
 
   // Code highlighting
   const highlightTheme = $('highlightTheme').value;
-  if (highlightTheme && highlightTheme !== 'none') {
-    args.push(`--highlight-style=${highlightTheme}`);
+  const syntaxHighlightingArg = getSyntaxHighlightingArgument(highlightTheme);
+  if (syntaxHighlightingArg) {
+    args.push(syntaxHighlightingArg);
   }
 
   // TOC
@@ -1819,7 +1821,7 @@ function setupConversion() {
 
     const outName = $('outputName').value || t('generic.output');
     const ext = getExtensionForFormat($('outputFormat').value);
-    const finalPath = (outputDirPath || './') + outName + '.' + ext;
+    const finalPath = buildOutputPath(outputDirPath, outName, ext);
 
     // Check if file exists and confirm overwrite
     if (isTauri) {

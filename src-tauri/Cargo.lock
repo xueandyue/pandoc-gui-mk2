@@ -2615,9 +2615,10 @@ dependencies = [
 
 [[package]]
 name = "pandoc-gui"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "dirs 5.0.1",
+ "encoding_rs",
  "lazy_static",
  "log",
  "open",
@@ -2631,6 +2632,7 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-shell",
  "tokio",
+ "windows-sys 0.59.0",
  "zip",
 ]
 

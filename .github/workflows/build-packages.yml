@@ -48,6 +48,9 @@ jobs:
             pandoc_asset_pattern: "pandoc-*-windows-x86_64.zip"
             pandoc_resource_subdir: "windows-x64"
             pandoc_binary_name: "pandoc.exe"
+            tectonic_asset_pattern: "tectonic-*-x86_64-pc-windows-msvc.zip"
+            tectonic_resource_subdir: "windows-x64"
+            tectonic_binary_name: "tectonic.exe"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -86,6 +89,15 @@ jobs:
           -AssetPattern "${{ matrix.pandoc_asset_pattern }}"
           -ResourceSubdir "${{ matrix.pandoc_resource_subdir }}"
           -BinaryName "${{ matrix.pandoc_binary_name }}"
+
+      - name: Prepare bundled Tectonic
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: >
+          ./scripts/prepare-bundled-tectonic.ps1
+          -AssetPattern "${{ matrix.tectonic_asset_pattern }}"
+          -ResourceSubdir "${{ matrix.tectonic_resource_subdir }}"
+          -BinaryName "${{ matrix.tectonic_binary_name }}"
 
       - name: Build Tauri bundles
         shell: bash

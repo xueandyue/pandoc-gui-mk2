@@ -15,7 +15,16 @@ $headers = @{
   "User-Agent" = "pandoc-gui-build"
 }
 
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/jgm/pandoc/releases/latest" -Headers $headers
+try {
+  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/jgm/pandoc/releases/latest" -Headers $headers
+} catch {
+  Write-Host "Invoke-RestMethod failed, retrying release metadata fetch with curl.exe..."
+  $json = & curl.exe -L --fail -H "User-Agent: pandoc-gui-build" "https://api.github.com/repos/jgm/pandoc/releases/latest"
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($json)) {
+    throw "Failed to fetch Pandoc release metadata."
+  }
+  $release = $json | ConvertFrom-Json
+}
 $asset = $release.assets | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
 
 if (-not $asset) {
@@ -30,7 +39,15 @@ New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
 
 $archivePath = Join-Path $archiveDir $asset.name
 Write-Host "Downloading $($asset.name) from $($release.tag_name)..."
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archivePath
+try {
+  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archivePath
+} catch {
+  Write-Host "Invoke-WebRequest failed, retrying with curl.exe..."
+  & curl.exe -L --fail --output $archivePath $asset.browser_download_url
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to download $($asset.name) with curl.exe."
+  }
+}
 
 if ($asset.name.EndsWith(".zip")) {
   Expand-Archive -Path $archivePath -DestinationPath $extractDir -Force

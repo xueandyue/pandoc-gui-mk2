@@ -1,16 +1,16 @@
-use std::process::{Command, Stdio};
+use log::{error, info};
+use std::collections::HashMap;
 use std::env;
+use std::fs;
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Write};
-use std::fs;
-use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::path::BaseDirectory;
-use tauri::menu::{Menu, MenuItem, Submenu, PredefinedMenuItem};
-use log::{info, error};
-use zip::{ZipWriter, write::SimpleFileOptions};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
+use zip::{write::SimpleFileOptions, ZipWriter};
 
 // Track running install processes for cancellation
 static NEXT_INSTALL_ID: AtomicU32 = AtomicU32::new(1);
@@ -70,11 +70,15 @@ fn get_extended_path() -> String {
         let user_profile = env::var("USERPROFILE").unwrap_or_default();
         let app_data = env::var("APPDATA").unwrap_or_default();
         let local_app_data = env::var("LOCALAPPDATA").unwrap_or_default();
-        let program_files = env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+        let program_files =
+            env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
 
         let extra_paths = vec![
             // MiKTeX paths
-            format!("{}\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64", user_profile),
+            format!(
+                "{}\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64",
+                user_profile
+            ),
             format!("{}\\miktex\\bin\\x64", program_files),
             // TeX Live paths
             "C:\\texlive\\2024\\bin\\windows".to_string(),
@@ -111,9 +115,20 @@ fn bundled_pandoc_resource_path() -> Option<&'static str> {
     }
 }
 
+fn bundled_tectonic_resource_path() -> Option<&'static str> {
+    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        Some("tectonic/windows-x64/tectonic.exe")
+    } else {
+        None
+    }
+}
+
 fn get_bundled_pandoc_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     let resource_path = bundled_pandoc_resource_path()?;
-    let resolved = app.path().resolve(resource_path, BaseDirectory::Resource).ok()?;
+    let resolved = app
+        .path()
+        .resolve(resource_path, BaseDirectory::Resource)
+        .ok()?;
 
     if resolved.exists() {
         resolved.parent().map(|parent| parent.to_path_buf())
@@ -122,15 +137,98 @@ fn get_bundled_pandoc_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     }
 }
 
+fn get_bundled_tectonic_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    let resource_path = bundled_tectonic_resource_path()?;
+    let resolved = app
+        .path()
+        .resolve(resource_path, BaseDirectory::Resource)
+        .ok()?;
+
+    if resolved.exists() {
+        resolved.parent().map(|parent| parent.to_path_buf())
+    } else {
+        None
+    }
+}
+
+fn get_bundled_pandoc_executable<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    let resource_path = bundled_pandoc_resource_path()?;
+    let resolved = app
+        .path()
+        .resolve(resource_path, BaseDirectory::Resource)
+        .ok()?;
+
+    if resolved.exists() {
+        Some(resolved)
+    } else {
+        None
+    }
+}
+
+fn normalize_windows_path(path: &Path) -> String {
+    let path_text = path.to_string_lossy().to_string();
+
+    #[cfg(target_os = "windows")]
+    {
+        path_text
+            .strip_prefix(r"\\?\")
+            .unwrap_or(&path_text)
+            .to_string()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        path_text
+    }
+}
+
 fn build_command_path<R: Runtime>(app: &AppHandle<R>) -> String {
     let extended_path = get_extended_path();
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let mut dirs = Vec::new();
 
     if let Some(bundled_dir) = get_bundled_pandoc_dir(app) {
-        let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
-        format!("{}{}{}", bundled_dir.to_string_lossy(), separator, extended_path)
-    } else {
-        extended_path
+        dirs.push(normalize_windows_path(&bundled_dir));
     }
+
+    if let Some(bundled_dir) = get_bundled_tectonic_dir(app) {
+        let normalized = normalize_windows_path(&bundled_dir);
+        if !dirs.contains(&normalized) {
+            dirs.push(normalized);
+        }
+    }
+
+    if dirs.is_empty() {
+        extended_path
+    } else {
+        format!("{}{}{}", dirs.join(separator), separator, extended_path)
+    }
+}
+
+fn should_replace_pandoc_command(command: &str) -> bool {
+    let trimmed = command.trim_start();
+    trimmed == "pandoc"
+        || trimmed
+            .strip_prefix("pandoc")
+            .map(|rest| rest.is_empty() || rest.starts_with(char::is_whitespace))
+            .unwrap_or(false)
+}
+
+fn resolve_command_binary<R: Runtime>(app: &AppHandle<R>, command: &str) -> String {
+    if !should_replace_pandoc_command(command) {
+        return command.to_string();
+    }
+
+    let Some(pandoc_path) = get_bundled_pandoc_executable(app) else {
+        return command.to_string();
+    };
+
+    let trimmed = command.trim_start();
+    let leading_ws_len = command.len() - trimmed.len();
+    let rest = &trimmed["pandoc".len()..];
+    let quoted = format!("\"{}\"", normalize_windows_path(&pandoc_path));
+
+    format!("{}{}{}", &command[..leading_ws_len], quoted, rest)
 }
 
 fn wrap_windows_command(command: &str) -> String {
@@ -142,19 +240,121 @@ fn wrap_windows_command(command: &str) -> String {
     }
 }
 
+fn looks_like_utf16_le(bytes: &[u8]) -> bool {
+    if bytes.len() < 2 || bytes.len() % 2 != 0 {
+        return false;
+    }
+
+    if bytes.starts_with(&[0xFF, 0xFE]) {
+        return true;
+    }
+
+    let total_pairs = bytes.len() / 2;
+    let zero_high_bytes = bytes.chunks_exact(2).filter(|chunk| chunk[1] == 0).count();
+
+    zero_high_bytes * 2 >= total_pairs
+}
+
+fn decode_command_output(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        return String::new();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(text) = String::from_utf8(bytes.to_vec()) {
+            return text;
+        }
+
+        let (gbk_text, _, had_errors) = encoding_rs::GBK.decode(bytes);
+        if !had_errors {
+            return gbk_text.into_owned();
+        }
+
+        if looks_like_utf16_le(bytes) {
+            let utf16: Vec<u16> = bytes
+                .chunks_exact(2)
+                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                .collect();
+
+            if let Ok(text) = String::from_utf16(&utf16) {
+                return text;
+            }
+        }
+    }
+
+    String::from_utf8_lossy(bytes).to_string()
+}
+
+fn decode_command_line(bytes: &[u8]) -> String {
+    decode_command_output(bytes)
+        .trim_end_matches(['\r', '\n'])
+        .to_string()
+}
+
+#[cfg(target_os = "windows")]
+fn parse_windows_command_line(command: &str) -> Result<Vec<String>, String> {
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::UI::Shell::CommandLineToArgvW;
+
+    fn wide_ptr_to_string(ptr: *const u16) -> String {
+        let mut len = 0usize;
+        unsafe {
+            while *ptr.add(len) != 0 {
+                len += 1;
+            }
+            String::from_utf16_lossy(std::slice::from_raw_parts(ptr, len))
+        }
+    }
+
+    let wide: Vec<u16> = command.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut argc = 0;
+    let argv = unsafe { CommandLineToArgvW(wide.as_ptr(), &mut argc) };
+
+    if argv.is_null() || argc <= 0 {
+        return Err("Failed to parse Windows command line".to_string());
+    }
+
+    let args = unsafe {
+        std::slice::from_raw_parts(argv, argc as usize)
+            .iter()
+            .map(|ptr| wide_ptr_to_string(*ptr))
+            .collect::<Vec<_>>()
+    };
+
+    unsafe {
+        let _ = LocalFree(argv.cast());
+    }
+
+    Ok(args)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn parse_windows_command_line(_command: &str) -> Result<Vec<String>, String> {
+    Err("Windows command parsing is only available on Windows".to_string())
+}
+
 #[tauri::command]
 fn check_command(app: AppHandle, command: String) -> Result<String, String> {
     let command_path = build_command_path(&app);
+    let resolved_command = resolve_command_binary(&app, &command);
 
     let output = if cfg!(target_os = "windows") {
-        let wrapped = wrap_windows_command(&command);
-        Command::new("cmd")
-            .args(["/C", &wrapped])
-            .env("PATH", &command_path)
-            .output()
+        if should_replace_pandoc_command(&command) {
+            let argv = parse_windows_command_line(&resolved_command)?;
+            let mut process = Command::new(&argv[0]);
+            process.args(&argv[1..]).env("PATH", &command_path);
+            process.output()
+        } else {
+            let wrapped = wrap_windows_command(&resolved_command);
+            Command::new("cmd")
+                .args(["/C", &wrapped])
+                .env("PATH", &command_path)
+                .output()
+        }
     } else {
         Command::new("sh")
-            .args(["-c", &command])
+            .args(["-c", &resolved_command])
             .env("PATH", &command_path)
             .output()
     };
@@ -162,9 +362,12 @@ fn check_command(app: AppHandle, command: String) -> Result<String, String> {
     match output {
         Ok(output) => {
             if output.status.success() {
-                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                Ok(decode_command_output(&output.stdout))
             } else {
-                Err(format!("Command failed: {}", String::from_utf8_lossy(&output.stderr)))
+                Err(format!(
+                    "Command failed: {}",
+                    decode_command_output(&output.stderr)
+                ))
             }
         }
         Err(e) => Err(format!("Failed to execute: {}", e)),
@@ -175,6 +378,7 @@ fn check_command(app: AppHandle, command: String) -> Result<String, String> {
 fn run_pandoc(app: AppHandle, command: String) -> Result<String, String> {
     info!("Running pandoc command: {}", command);
     let command_path = build_command_path(&app);
+    let resolved_command = resolve_command_binary(&app, &command);
     let home = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     let temp_dir = env::temp_dir();
 
@@ -188,7 +392,8 @@ fn run_pandoc(app: AppHandle, command: String) -> Result<String, String> {
         // Try multiple possible locations for the config file
         let possible_paths = vec![
             app_dir.join(".mermaid-config.json"),
-            app_dir.parent()
+            app_dir
+                .parent()
                 .and_then(|p| p.parent())
                 .map(|p| p.join(".mermaid-config.json"))
                 .unwrap_or_default(),
@@ -206,23 +411,25 @@ fn run_pandoc(app: AppHandle, command: String) -> Result<String, String> {
     // Detect output format from command to optimize mermaid rendering
     // For PDF output: use PDF format (best quality, scalable, embeds perfectly)
     // For HTML/EPUB: use SVG format (scalable, lightweight)
-    let mermaid_format = if command.contains("-t pdf") || command.contains("-t=pdf") {
-        "pdf"  // PDF format embeds perfectly in PDF output with full quality
-    } else {
-        "svg"  // SVG is best for HTML/EPUB (scalable, lightweight)
-    };
+    let mermaid_format =
+        if resolved_command.contains("-t pdf") || resolved_command.contains("-t=pdf") {
+            "pdf" // PDF format embeds perfectly in PDF output with full quality
+        } else {
+            "svg" // SVG is best for HTML/EPUB (scalable, lightweight)
+        };
 
     let output = if cfg!(target_os = "windows") {
-        let wrapped = wrap_windows_command(&command);
-        Command::new("cmd")
-            .args(["/C", &wrapped])
+        let argv = parse_windows_command_line(&resolved_command)?;
+        let mut process = Command::new(&argv[0]);
+        process
+            .args(&argv[1..])
             .env("PATH", &command_path)
             .env("MERMAID_FILTER_FORMAT", mermaid_format)
-            .env("MERMAID_FILTER_BACKGROUND", "transparent")
-            .output()
+            .env("MERMAID_FILTER_BACKGROUND", "transparent");
+        process.output()
     } else {
         Command::new("sh")
-            .args(["-c", &command])
+            .args(["-c", &resolved_command])
             .env("PATH", &command_path)
             // Set working directory to home to avoid read-only filesystem issues
             .current_dir(&home)
@@ -238,10 +445,10 @@ fn run_pandoc(app: AppHandle, command: String) -> Result<String, String> {
         Ok(output) => {
             if output.status.success() {
                 info!("Pandoc command completed successfully");
-                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                Ok(decode_command_output(&output.stdout))
             } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = decode_command_output(&output.stderr);
+                let stdout = decode_command_output(&output.stdout);
                 error!("Pandoc command failed: {}\n{}", stderr, stdout);
                 Err(format!("{}\n{}", stderr, stdout))
             }
@@ -303,7 +510,11 @@ fn get_app_version() -> String {
 
 // Run a command with streaming output to the frontend
 #[tauri::command]
-async fn run_command_with_output(app: AppHandle, command: String, operation: String) -> Result<String, String> {
+async fn run_command_with_output(
+    app: AppHandle,
+    command: String,
+    operation: String,
+) -> Result<String, String> {
     let command_path = build_command_path(&app);
     let install_id = NEXT_INSTALL_ID.fetch_add(1, Ordering::SeqCst);
     let cancelled = Arc::new(AtomicBool::new(false));
@@ -315,12 +526,15 @@ async fn run_command_with_output(app: AppHandle, command: String, operation: Str
     }
 
     // Emit start event
-    let _ = app.emit("command-output", serde_json::json!({
-        "type": "start",
-        "id": install_id,
-        "operation": operation,
-        "command": command
-    }));
+    let _ = app.emit(
+        "command-output",
+        serde_json::json!({
+            "type": "start",
+            "id": install_id,
+            "operation": operation,
+            "command": command
+        }),
+    );
 
     let app_clone = app.clone();
     let cancelled_clone = cancelled.clone();
@@ -342,7 +556,8 @@ async fn run_command_with_output(app: AppHandle, command: String, operation: Str
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
-        }.map_err(|e| format!("Failed to start: {}", e))?;
+        }
+        .map_err(|e| format!("Failed to start: {}", e))?;
 
         // Read stdout in a separate thread
         let stdout = child.stdout.take();
@@ -352,24 +567,36 @@ async fn run_command_with_output(app: AppHandle, command: String, operation: Str
 
         let stdout_handle = std::thread::spawn(move || {
             if let Some(stdout) = stdout {
-                let reader = BufReader::new(stdout);
-                for line in reader.lines().map_while(Result::ok) {
-                    let _ = app_stdout.emit("command-output", serde_json::json!({
-                        "type": "stdout",
-                        "line": line
-                    }));
+                let mut reader = BufReader::new(stdout);
+                let mut buffer = Vec::new();
+                while reader.read_until(b'\n', &mut buffer).unwrap_or(0) > 0 {
+                    let line = decode_command_line(&buffer);
+                    let _ = app_stdout.emit(
+                        "command-output",
+                        serde_json::json!({
+                            "type": "stdout",
+                            "line": line
+                        }),
+                    );
+                    buffer.clear();
                 }
             }
         });
 
         let stderr_handle = std::thread::spawn(move || {
             if let Some(stderr) = stderr {
-                let reader = BufReader::new(stderr);
-                for line in reader.lines().map_while(Result::ok) {
-                    let _ = app_stderr.emit("command-output", serde_json::json!({
-                        "type": "stderr",
-                        "line": line
-                    }));
+                let mut reader = BufReader::new(stderr);
+                let mut buffer = Vec::new();
+                while reader.read_until(b'\n', &mut buffer).unwrap_or(0) > 0 {
+                    let line = decode_command_line(&buffer);
+                    let _ = app_stderr.emit(
+                        "command-output",
+                        serde_json::json!({
+                            "type": "stderr",
+                            "line": line
+                        }),
+                    );
+                    buffer.clear();
                 }
             }
         });
@@ -389,7 +616,11 @@ async fn run_command_with_output(app: AppHandle, command: String, operation: Str
         if status.success() {
             Ok(format!("{} completed successfully", operation_clone))
         } else {
-            Err(format!("{} failed with exit code: {:?}", operation_clone, status.code()))
+            Err(format!(
+                "{} failed with exit code: {:?}",
+                operation_clone,
+                status.code()
+            ))
         }
     })
     .await
@@ -402,12 +633,15 @@ async fn run_command_with_output(app: AppHandle, command: String, operation: Str
     }
 
     // Emit end event
-    let _ = app.emit("command-output", serde_json::json!({
-        "type": "end",
-        "id": install_id,
-        "success": result.is_ok(),
-        "message": result.as_ref().map(|s| s.as_str()).unwrap_or_else(|e| e.as_str())
-    }));
+    let _ = app.emit(
+        "command-output",
+        serde_json::json!({
+            "type": "end",
+            "id": install_id,
+            "success": result.is_ok(),
+            "message": result.as_ref().map(|s| s.as_str()).unwrap_or_else(|e| e.as_str())
+        }),
+    );
 
     result
 }
@@ -428,7 +662,9 @@ fn cancel_all_installs() -> Result<String, String> {
 // Uses osascript on macOS for commands requiring admin privileges (shows native password dialog)
 fn get_uninstall_command(name: &str) -> Option<String> {
     match name {
-        "tectonic" => Some("brew uninstall tectonic 2>&1 || cargo uninstall tectonic 2>&1".to_string()),
+        "tectonic" => {
+            Some("brew uninstall tectonic 2>&1 || cargo uninstall tectonic 2>&1".to_string())
+        }
         "texlive" => {
             if cfg!(target_os = "macos") {
                 Some(r#"ASKPASS_SCRIPT=$(mktemp) && cat > "$ASKPASS_SCRIPT" << 'ASKPASSEOF'
@@ -437,9 +673,12 @@ osascript -e 'display dialog "Pandoc GUI needs your password to uninstall BasicT
 ASKPASSEOF
 chmod +x "$ASKPASS_SCRIPT" && SUDO_ASKPASS="$ASKPASS_SCRIPT" brew uninstall --cask basictex 2>&1 || brew uninstall --cask mactex 2>&1; EXIT_CODE=$?; rm -f "$ASKPASS_SCRIPT"; exit $EXIT_CODE"#.to_string())
             } else {
-                Some("brew uninstall --cask basictex 2>&1 || brew uninstall --cask mactex 2>&1".to_string())
+                Some(
+                    "brew uninstall --cask basictex 2>&1 || brew uninstall --cask mactex 2>&1"
+                        .to_string(),
+                )
             }
-        },
+        }
         "mermaid-filter" => {
             if cfg!(target_os = "macos") {
                 // Try without sudo first (works if npm prefix is user-writable), fall back to sudo with askpass
@@ -453,7 +692,7 @@ chmod +x "$ASKPASS_SCRIPT" && SUDO_ASKPASS="$ASKPASS_SCRIPT" sudo -A npm uninsta
             } else {
                 Some("npm uninstall -g mermaid-filter 2>&1".to_string())
             }
-        },
+        }
         "pandoc-crossref" => Some("brew uninstall pandoc-crossref 2>&1".to_string()),
         "pandoc" => Some("brew uninstall pandoc 2>&1".to_string()),
         _ => None,
@@ -480,7 +719,7 @@ chmod +x "$ASKPASS_SCRIPT" && SUDO_ASKPASS="$ASKPASS_SCRIPT" brew install --cask
             } else {
                 Some("brew install --cask basictex 2>&1".to_string())
             }
-        },
+        }
         ("texlive", "apt") => {
             if cfg!(target_os = "linux") {
                 // Use pkexec for GUI password prompt on Linux
@@ -488,7 +727,7 @@ chmod +x "$ASKPASS_SCRIPT" && SUDO_ASKPASS="$ASKPASS_SCRIPT" brew install --cask
             } else {
                 Some("sudo apt install texlive-latex-base texlive-fonts-recommended texlive-latex-extra 2>&1".to_string())
             }
-        },
+        }
         ("mermaid-filter", "npm") => {
             if cfg!(target_os = "macos") {
                 // Try without sudo first (works if npm prefix is user-writable), fall back to sudo with askpass
@@ -502,7 +741,7 @@ chmod +x "$ASKPASS_SCRIPT" && SUDO_ASKPASS="$ASKPASS_SCRIPT" sudo -A npm install
             } else {
                 Some("npm install -g mermaid-filter 2>&1".to_string())
             }
-        },
+        }
         ("pandoc-crossref", "brew") => Some("brew install pandoc-crossref 2>&1".to_string()),
         ("pandoc", "brew") => Some("brew install pandoc 2>&1".to_string()),
         _ => None,
@@ -510,7 +749,11 @@ chmod +x "$ASKPASS_SCRIPT" && SUDO_ASKPASS="$ASKPASS_SCRIPT" sudo -A npm install
 }
 
 #[tauri::command]
-async fn install_dependency(app: AppHandle, name: String, method: String) -> Result<String, String> {
+async fn install_dependency(
+    app: AppHandle,
+    name: String,
+    method: String,
+) -> Result<String, String> {
     info!("Installing dependency: {} via {}", name, method);
     let command = get_install_command(&name, &method)
         .ok_or_else(|| format!("Unknown install method {} for {}", method, name))?;
@@ -522,20 +765,25 @@ async fn install_dependency(app: AppHandle, name: String, method: String) -> Res
 #[tauri::command]
 async fn uninstall_dependency(app: AppHandle, name: String) -> Result<String, String> {
     info!("Uninstalling dependency: {}", name);
-    let command = get_uninstall_command(&name)
-        .ok_or_else(|| format!("Unknown dependency: {}", name))?;
+    let command =
+        get_uninstall_command(&name).ok_or_else(|| format!("Unknown dependency: {}", name))?;
     info!("Uninstall command: {}", command);
 
     run_command_with_output(app, command, format!("Uninstalling {}", name)).await
 }
 
 #[tauri::command]
-async fn reinstall_dependency(app: AppHandle, name: String, method: String) -> Result<String, String> {
+async fn reinstall_dependency(
+    app: AppHandle,
+    name: String,
+    method: String,
+) -> Result<String, String> {
     // First uninstall
-    let uninstall_cmd = get_uninstall_command(&name)
-        .ok_or_else(|| format!("Unknown dependency: {}", name))?;
+    let uninstall_cmd =
+        get_uninstall_command(&name).ok_or_else(|| format!("Unknown dependency: {}", name))?;
 
-    let _ = run_command_with_output(app.clone(), uninstall_cmd, format!("Uninstalling {}", name)).await;
+    let _ =
+        run_command_with_output(app.clone(), uninstall_cmd, format!("Uninstalling {}", name)).await;
 
     // Then install
     let install_cmd = get_install_command(&name, &method)
@@ -637,20 +885,27 @@ fn generate_reference_docx(
     // Heading sizes (relative to body)
     let h1_size = font_size_half_pts + 16; // +8pt
     let h2_size = font_size_half_pts + 12; // +6pt
-    let h3_size = font_size_half_pts + 8;  // +4pt
-    let h4_size = font_size_half_pts + 4;  // +2pt
+    let h3_size = font_size_half_pts + 8; // +4pt
+    let h4_size = font_size_half_pts + 4; // +2pt
 
     // Use default fonts if not specified
-    let main_font = if main_font.is_empty() { "Calibri".to_string() } else { main_font };
-    let mono_font = if mono_font.is_empty() { "Consolas".to_string() } else { mono_font };
+    let main_font = if main_font.is_empty() {
+        "Calibri".to_string()
+    } else {
+        main_font
+    };
+    let mono_font = if mono_font.is_empty() {
+        "Consolas".to_string()
+    } else {
+        mono_font
+    };
 
     // Create the DOCX as a ZIP file
     let file = std::fs::File::create(&docx_path)
         .map_err(|e| format!("Failed to create DOCX file: {}", e))?;
 
     let mut zip = ZipWriter::new(file);
-    let options = SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // [Content_Types].xml
     let content_types = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -693,7 +948,8 @@ fn generate_reference_docx(
         .map_err(|e| format!("Failed to write doc rels: {}", e))?;
 
     // word/document.xml - minimal document with page margins
-    let document = format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    let document = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p><w:r><w:t></w:t></w:r></w:p>
@@ -702,7 +958,9 @@ fn generate_reference_docx(
       <w:pgMar w:top="{}" w:right="{}" w:bottom="{}" w:left="{}" w:header="720" w:footer="720" w:gutter="0"/>
     </w:sectPr>
   </w:body>
-</w:document>"#, margin_top_twips, margin_right_twips, margin_bottom_twips, margin_left_twips);
+</w:document>"#,
+        margin_top_twips, margin_right_twips, margin_bottom_twips, margin_left_twips
+    );
 
     zip.start_file("word/document.xml", options)
         .map_err(|e| format!("Failed to create document.xml: {}", e))?;
@@ -710,7 +968,8 @@ fn generate_reference_docx(
         .map_err(|e| format!("Failed to write document.xml: {}", e))?;
 
     // word/styles.xml - defines all text styles with custom fonts
-    let styles = format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    let styles = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
     <w:rPrDefault>
@@ -847,7 +1106,8 @@ fn generate_reference_docx(
     <w:basedOn w:val="Normal"/>
   </w:style>
 
-</w:styles>"#);
+</w:styles>"#
+    );
 
     zip.start_file("word/styles.xml", options)
         .map_err(|e| format!("Failed to create styles.xml: {}", e))?;
@@ -867,7 +1127,8 @@ fn generate_reference_docx(
         .map_err(|e| format!("Failed to write settings.xml: {}", e))?;
 
     // word/fontTable.xml - font declarations
-    let font_table = format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    let font_table = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:font w:name="{main_font}">
     <w:charset w:val="00"/>
@@ -878,7 +1139,8 @@ fn generate_reference_docx(
     <w:family w:val="modern"/>
     <w:pitch w:val="fixed"/>
   </w:font>
-</w:fonts>"#);
+</w:fonts>"#
+    );
 
     zip.start_file("word/fontTable.xml", options)
         .map_err(|e| format!("Failed to create fontTable.xml: {}", e))?;
@@ -910,9 +1172,7 @@ fn list_system_fonts() -> Result<Vec<String>, String> {
             })
     } else if cfg!(target_os = "linux") {
         // Linux: fc-list is standard on most distros
-        Command::new("fc-list")
-            .args([":", "family"])
-            .output()
+        Command::new("fc-list").args([":", "family"]).output()
     } else if cfg!(target_os = "windows") {
         // Windows: Use PowerShell with proper assembly loading
         Command::new("powershell")
@@ -929,7 +1189,7 @@ fn list_system_fonts() -> Result<Vec<String>, String> {
     match output {
         Ok(output) => {
             if output.status.success() {
-                let text = String::from_utf8_lossy(&output.stdout);
+                let text = decode_command_output(&output.stdout);
                 let mut fonts: HashSet<String> = HashSet::new();
 
                 for line in text.lines() {
@@ -971,7 +1231,8 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .setup(|app| {
             // Create custom menu
-            let about_item = MenuItem::with_id(app, "about", "About Pandoc GUI", true, None::<&str>)?;
+            let about_item =
+                MenuItem::with_id(app, "about", "About Pandoc GUI", true, None::<&str>)?;
             let quit_item = PredefinedMenuItem::quit(app, Some("Quit"))?;
             let separator = PredefinedMenuItem::separator(app)?;
 
@@ -1014,13 +1275,75 @@ pub fn run() {
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
                     .target(tauri_plugin_log::Target::new(
-                        tauri_plugin_log::TargetKind::LogDir { file_name: Some("pandoc-gui.log".into()) }
+                        tauri_plugin_log::TargetKind::LogDir {
+                            file_name: Some("pandoc-gui.log".into()),
+                        },
                     ))
                     .build(),
             )?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_pandoc, open_file, check_command, list_system_fonts, file_exists, write_dark_mode_header, write_unicode_header, generate_reference_docx, install_dependency, cancel_all_installs, uninstall_dependency, reinstall_dependency, run_command_with_output, get_downloads_path, reveal_in_finder, get_app_version])
+        .invoke_handler(tauri::generate_handler![
+            run_pandoc,
+            open_file,
+            check_command,
+            list_system_fonts,
+            file_exists,
+            write_dark_mode_header,
+            write_unicode_header,
+            generate_reference_docx,
+            install_dependency,
+            cancel_all_installs,
+            uninstall_dependency,
+            reinstall_dependency,
+            run_command_with_output,
+            get_downloads_path,
+            reveal_in_finder,
+            get_app_version
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_replace_only_plain_pandoc_commands() {
+        assert!(should_replace_pandoc_command("pandoc"));
+        assert!(should_replace_pandoc_command("pandoc -t html"));
+        assert!(should_replace_pandoc_command("  pandoc \"input.md\""));
+        assert!(!should_replace_pandoc_command("xpandoc -t html"));
+        assert!(!should_replace_pandoc_command("\"pandoc\" -t html"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn parse_windows_command_line_preserves_quoted_paths() {
+        let argv = parse_windows_command_line(
+            "\"C:\\Program Files\\Pandoc GUI\\pandoc.exe\" \
+             \"C:\\Users\\jian\\Desktop\\AI时代\\输入文档.md\" \
+             -t html \
+             -o \"C:\\Users\\jian\\Desktop\\输出文档.html\"",
+        )
+        .expect("command line should parse");
+
+        assert_eq!(argv[0], "C:\\Program Files\\Pandoc GUI\\pandoc.exe");
+        assert_eq!(argv[1], "C:\\Users\\jian\\Desktop\\AI时代\\输入文档.md");
+        assert_eq!(argv[2], "-t");
+        assert_eq!(argv[3], "html");
+        assert_eq!(argv[4], "-o");
+        assert_eq!(argv[5], "C:\\Users\\jian\\Desktop\\输出文档.html");
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn normalize_windows_path_removes_verbatim_prefix() {
+        let path = Path::new(r"\\?\C:\Program Files\Pandoc GUI\pandoc.exe");
+        assert_eq!(
+            normalize_windows_path(path),
+            r"C:\Program Files\Pandoc GUI\pandoc.exe"
+        );
+    }
 }
